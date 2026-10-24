@@ -15,8 +15,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $pmf = 'C:\Users\ajtaj\Desktop\Github\PureBasicCode\OpenGl Work\ArduinoBasic\PureMetalForge.exe'
-$src = [IO.Path]::GetFullPath((Join-Path $root $Source))
-$out = [IO.Path]::GetFullPath((Join-Path $root $Output))
+function Resolve-Any([string]$p) { if ([IO.Path]::IsPathRooted($p)) { return [IO.Path]::GetFullPath($p) } return [IO.Path]::GetFullPath((Join-Path $root $p)) }
+$src = Resolve-Any $Source
+$out = Resolve-Any $Output
 [IO.Directory]::CreateDirectory((Split-Path $out -Parent)) | Out-Null
 $args1 = '--compile "' + $src + '" -S -o "' + $out + '"'
 $p = Start-Process -FilePath $pmf -ArgumentList $args1 -WorkingDirectory (Split-Path $pmf -Parent) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput "$out.build.log" -RedirectStandardError "$out.stderr.log"

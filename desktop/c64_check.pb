@@ -172,9 +172,19 @@ If mode$ = "demo"
 EndIf
 
 If mode$ = "boot"
-  *basic = LoadFile(romdir$ + "\basic.bin", @size)
-  *kernal = LoadFile(romdir$ + "\kernal.bin", @size)
-  *chars = LoadFile(romdir$ + "\chargen.bin", @size)
+  Define dd.i, n$, sz.i
+  If Right(romdir$, 1) <> "\" : romdir$ + "\" : EndIf
+  dd = ExamineDirectory(#PB_Any, romdir$, "*.*")
+  If dd
+    While NextDirectoryEntry(dd)
+      n$ = LCase(DirectoryEntryName(dd)) : sz = DirectoryEntrySize(dd)
+      If sz = 8192 And FindString(n$, "basic") : *basic = LoadFile(romdir$ + DirectoryEntryName(dd), @size) : EndIf
+      If sz = 8192 And FindString(n$, "kernal") : *kernal = LoadFile(romdir$ + DirectoryEntryName(dd), @size) : EndIf
+      If sz = 4096 And (FindString(n$, "char") Or FindString(n$, "901225")) : *chars = LoadFile(romdir$ + DirectoryEntryName(dd), @size) : EndIf
+    Wend
+    FinishDirectory(dd)
+  EndIf
+  If *basic = 0 Or *kernal = 0 Or *chars = 0 : PrintN("ROMs not found in " + romdir$) : End 2 : EndIf
   C64SetRoms(*basic, *kernal, *chars)
   C64PowerOn()
   If d64$ : *d64 = LoadFile(d64$, @size) : C64InsertD64(*d64, size) : EndIf

@@ -6,6 +6,7 @@ XIncludeFile "RP2350/Lib/flash.pico2"
 XIncludeFile "RP2350/Lib/spi.pico2"
 XIncludeFile "RP2350/Lib/st7796.pico2"
 CompilerIf #C64_AUDIO = 1
+  XIncludeFile "RP2350/Lib/string_out.pico2"
   XIncludeFile "RP2350/Lib/cyw43_nvram.pico2"
   XIncludeFile "RP2350/Lib/cyw43.pico2"
   XIncludeFile "RP2350/Lib/cyw43_btfw.pico2"
