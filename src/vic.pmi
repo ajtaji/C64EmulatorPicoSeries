@@ -32,6 +32,8 @@ Global VicOut.i, VicLinesDrawn.i, VicSprActive.i = 1
 ; set (the leftmost pixel is the lowest byte). Cells are stored
 ; as words when there is no X scroll, else byte by byte.
 Global Dim Mask4.l(16)
+; a multicolour cell's four colours, each doubled into a 2-pixel half-word
+Global Dim PairW.l(4)
 
 ProcedureRAM.i VicIrqActive()
   ProcedureReturn VicIrqFlags & VicIrqMask & 15
@@ -334,16 +336,9 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
       mc = 1 : p0 = 0 : p1 = 0 : p2 = 16 : p3 = 16
     EndIf
     If mc
-      k = (g >> 6) & 3
-      If k = 0 : w0 = p0 : ElseIf k = 1 : w0 = p1 : ElseIf k = 2 : w0 = p2 : Else : w0 = p3 : EndIf
-      k = (g >> 4) & 3
-      If k = 0 : m = p0 : ElseIf k = 1 : m = p1 : ElseIf k = 2 : m = p2 : Else : m = p3 : EndIf
-      w0 = (w0 * $0101) | ((m * $0101) << 16)
-      k = (g >> 2) & 3
-      If k = 0 : w1 = p0 : ElseIf k = 1 : w1 = p1 : ElseIf k = 2 : w1 = p2 : Else : w1 = p3 : EndIf
-      k = g & 3
-      If k = 0 : m = p0 : ElseIf k = 1 : m = p1 : ElseIf k = 2 : m = p2 : Else : m = p3 : EndIf
-      w1 = (w1 * $0101) | ((m * $0101) << 16)
+      PairW(0) = p0 * $0101 : PairW(1) = p1 * $0101 : PairW(2) = p2 * $0101 : PairW(3) = p3 * $0101
+      w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
+      w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
     Else
       f = f * $01010101 : b = b * $01010101
       m = Mask4((g >> 4) & 15)
