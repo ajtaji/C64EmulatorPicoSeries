@@ -204,6 +204,45 @@ ProcedureRAM SidRun(now.i)
   SidEnv3 = SidEnv(2)
   ; hard sync and noise are rare: their per-sample work only when a voice uses them
   syncs = (SidReg(4) | SidReg(11) | SidReg(18)) & 2
+  ; silent (every envelope at zero, nothing through the filter, no noise or sync): the output is
+  ; only the DC level, so the oscillators move on in one step and each sample is the DC blocker
+  If (SidEnv(0) | SidEnv(1) | SidEnv(2) | route | syncs) = 0 And ((SidReg(4) | SidReg(11) | SidReg(18)) & $80) = 0
+    k = 0
+    While SidPhase >= SidCps16
+      SidPhase = SidPhase - SidCps16
+      k = k + 1
+    Wend
+    If k = 0 : ProcedureReturn : EndIf
+    For v = 0 To 2
+      If SidReg(v * 7 + 4) & 8
+        SidAcc(v) = 0
+      Else
+        SidAcc(v) = (SidAcc(v) + SidStep(v) * k) & $FFFFFF
+      EndIf
+    Next
+    SidOsc3 = (SidWave(2) >> 4) & 255
+    o = 0
+    If mode & $10 : o = o + SidLp : EndIf
+    If mode & $20 : o = o + SidBp : EndIf
+    If mode & $40 : o = o + SidHp : EndIf
+    mix = ((o * vmul) >> 16) + vol * 1600
+    While k > 0
+      SidDcOut = mix - SidDcIn + ((SidDcOut * 255) >> 8)
+      SidDcIn = mix
+      o = SidDcOut
+      If o > 32767 : o = 32767 : EndIf
+      If o < -32768 : o = -32768 : EndIf
+      If SidMute : o = 0 : EndIf
+      SidPcm(SidSamples & (#SID_RING - 1)) = o
+      SidSamples = SidSamples + 1
+      If SidDiv = 2
+        SidPcm(SidSamples & (#SID_RING - 1)) = o
+        SidSamples = SidSamples + 1
+      EndIf
+      k = k - 1
+    Wend
+    ProcedureReturn
+  EndIf
   While SidPhase >= SidCps16
     SidPhase = SidPhase - SidCps16
     For v = 0 To 2

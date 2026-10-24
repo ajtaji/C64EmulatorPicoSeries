@@ -1,0 +1,36 @@
+# Dungeon of ROTT V2 (free, SEUCK) from the sparse .D64 in the flash store: load, run, start, play.
+expect d64=1 20
+wait 4
+send LOAD"*",8,1\n
+expect C64_STATUS 5
+wait 3
+send RUN\n
+wait 8
+send \`s
+expect SCREEN_END 5
+send \`p
+send \`j
+wait 3
+send \`j
+wait 2
+send \`u
+wait 1
+send \`e
+wait 1
+send \`j
+wait 1
+send \`a
+wait 1
+send \`j
+wait 6
+send \`s
+expect SCREEN_END 5
+wait 4
+# then the PureMetal demo (store PRG 0), the time split still on
+send \`b
+wait 4
+send \`0
+wait 10
+send \`s
+expect SCREEN_END 5
+wait 3

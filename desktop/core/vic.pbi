@@ -43,6 +43,11 @@ Global Dim MP3.l(16)
 ; multicolour foreground (pairs 2 and 3) of a nibble, for the black invalid modes
 Global Dim MPFg.l(16)
 Global MCKey.i = -1
+; text cells by table: TxTab(colour << 4 | nibble) is the finished 4-pixel word of a cell of that
+; colour RAM value. Standard text (TxMode 0) for background TxKey; multicolour text (TxMode 1)
+; for the background colours 0-2 in TxKey. Rebuilt when the line's mode or colours differ.
+Global Dim TxTab.l(256)
+Global TxKey.i = -1
 Global Dim SprPos.i(8)
 Global Dim SprEnd.i(8)
 Global Dim SprLap.i(8)
@@ -86,7 +91,7 @@ Procedure VicReset()
     If i & 2 : m = m | $FFFF0000 : EndIf
     MPFg(i) = m
   Next
-  MCKey = -1
+  MCKey = -1 : TxKey = -1
   For i = 0 To 63 : VicReg(i) = 0 : Next
   For i = 0 To 7
     SprDma(i) = 0 : SprDisp(i) = 0 : SprMcBase(i) = 0 : SprMc(i) = 0 : SprFF(i) = 1 : SprData(i) = 0
@@ -305,6 +310,39 @@ EndProcedure
 ; cell: stored as words when there is no X scroll (the line is word-aligned), else as bytes.
 ; Standard text, the common screen, has a loop of its own.
 ; the bytes a shifted line pushed past its last cell, into the word after it
+Procedure VicTxBuild(key.i)
+  Protected cl.i, nb.i, f.i, b.i, m.i, w.i, b1.i, b2.i, p1.i, p2.i
+  TxKey = key
+  b = (key & 15) * $01010101
+  If key & $10000
+    ; multicolour text: colour RAM 8-15 multicolour (pair 3 = colour & 7), 0-7 hires
+    p1 = ((key >> 4) & 15) * $0101 : p2 = (((key >> 8) & 15) | 16) * $0101
+    b1 = (key & 15) * $0101
+    For cl = 0 To 15
+      f = ((cl & 7) | 16) * $01010101
+      For nb = 0 To 15
+        If cl & 8
+          w = 0
+          m = (nb >> 2) & 3
+          If m = 0 : w = b1 : ElseIf m = 1 : w = p1 : ElseIf m = 2 : w = p2 : Else : w = ((cl & 7) | 16) * $0101 : EndIf
+          m = nb & 3
+          If m = 0 : w = w | (b1 << 16) : ElseIf m = 1 : w = w | (p1 << 16) : ElseIf m = 2 : w = w | (p2 << 16) : Else : w = w | ((((cl & 7) | 16) * $0101) << 16) : EndIf
+        Else
+          m = Mask4(nb) : w = (m & f) | ((~m) & b)
+        EndIf
+        TxTab((cl << 4) | nb) = w
+      Next
+    Next
+  Else
+    For cl = 0 To 15
+      f = (cl | 16) * $01010101
+      For nb = 0 To 15
+        m = Mask4(nb) : TxTab((cl << 4) | nb) = (m & f) | ((~m) & b)
+      Next
+    Next
+  EndIf
+EndProcedure
+
 Procedure VicCellsTail(ad.i, sh.i, cy.i)
   If sh
     PokeL(ad, (PeekL(ad) & ~((1 << sh) - 1)) | cy)
@@ -327,37 +365,24 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
   EndIf
   ; the line's character data: one 2 KB set inside one 4 KB block of the VIC's bank
   chp = VicMap((cb >> 12) & 3) + cb + VicRc
-  If mode = 0 And VicDisplay And sh = 0
-    b = bg0 * $01010101
+  ; standard and multicolour text: two table words a cell
+  If mode <= 1 And VicDisplay
+    k = bg0
+    If mode = 1 : k = k | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8) | $10000 : EndIf
+    If k <> TxKey : VicTxBuild(k) : EndIf
+    If sh = 0
+      For i = 0 To 39
+        g = PeekA(chp + (VmLine(i) << 3))
+        c = (ColLine(i) & 15) << 4
+        PokeL(gp, TxTab(c | (g >> 4))) : PokeL(gp + 4, TxTab(c | (g & 15)))
+        gp = gp + 8
+      Next
+      ProcedureReturn
+    EndIf
     For i = 0 To 39
       g = PeekA(chp + (VmLine(i) << 3))
-      If g
-        f = (ColLine(i) | 16) * $01010101
-        m = Mask4(g >> 4)
-        PokeL(gp, (m & f) | ((~m) & b))
-        m = Mask4(g & 15)
-        PokeL(gp + 4, (m & f) | ((~m) & b))
-      Else
-        PokeL(gp, b) : PokeL(gp + 4, b)
-      EndIf
-      gp = gp + 8
-    Next
-    VicCellsTail(gp, sh, cy)
-    ProcedureReturn
-  EndIf
-  If mode = 0 And VicDisplay
-    b = bg0 * $01010101
-    For i = 0 To 39
-      g = PeekA(chp + (VmLine(i) << 3))
-      If g
-        f = (ColLine(i) | 16) * $01010101
-        m = Mask4(g >> 4)
-        w0 = (m & f) | ((~m) & b)
-        m = Mask4(g & 15)
-        w1 = (m & f) | ((~m) & b)
-      Else
-        w0 = b : w1 = b
-      EndIf
+      c = (ColLine(i) & 15) << 4
+      w0 = TxTab(c | (g >> 4)) : w1 = TxTab(c | (g & 15))
       PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
       gp = gp + 8
     Next
