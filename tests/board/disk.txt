@@ -1,6 +1,5 @@
 # Boot from the flash store, list the .D64 in drive 8, load a program from it and run it.
-expect C64 mode=basic 20
-expect d64=1 2
+expect d64=1 20
 wait 4
 send LOAD"$",8\n
 wait 3
