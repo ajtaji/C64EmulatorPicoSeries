@@ -91,10 +91,10 @@ Procedure SidWrite(reg.i, v.i)
   EndIf
 EndProcedure
 
-; One envelope's step: rate counter in 16.16 cycles, the exponential divider
-; for decay and release.
-Procedure SidEnvelope(v.i)
-  Protected ctl.i, period.i, state.i, sus.i, env.i, ep.i
+; One envelope through n machine cycles (once a raster line, not once a sample): the rate
+; counter counts cycles exactly; decay and release take the exponential divider's steps.
+Procedure SidEnvelope(v.i, n.i)
+  Protected period.i, state.i, sus.i, env.i, ep.i
   state = SidEnvState(v)
   env = SidEnv(v)
   If state = 0
@@ -104,9 +104,9 @@ Procedure SidEnvelope(v.i)
   Else
     period = SidRates(SidReg(v * 7 + 6) & 15)
   EndIf
-  SidRateCnt(v) = SidRateCnt(v) + SidCps16
-  While SidRateCnt(v) >= (period << 16)
-    SidRateCnt(v) = SidRateCnt(v) - (period << 16)
+  SidRateCnt(v) = SidRateCnt(v) + n
+  While SidRateCnt(v) >= period
+    SidRateCnt(v) = SidRateCnt(v) - period
     If state = 0
       env = env + 1
       If env >= 255 : env = 255 : state = 1 : EndIf
@@ -171,7 +171,7 @@ EndProcedure
 
 ; Produce the samples due by machine clock now.
 Procedure SidRun(now.i)
-  Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i
+  Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i, vmul.i, wv.i
   n = now - SidLast
   If n <= 0 : ProcedureReturn : EndIf
   If n > 20000 : n = 20000 : EndIf
@@ -180,6 +180,10 @@ Procedure SidRun(now.i)
   route = SidReg($17) & 7
   mode = SidReg($18) & $70
   vol = SidReg($18) & 15
+  ; volume / 15 as a multiply (the M0+ has no divide): x * vol * 4369 >> 16
+  vmul = vol * 4369
+  For v = 0 To 2 : SidEnvelope(v, n) : Next
+  SidEnv3 = SidEnv(2)
   While SidPhase >= SidCps16
     SidPhase = SidPhase - SidCps16
     For v = 0 To 2
@@ -211,19 +215,17 @@ Procedure SidRun(now.i)
     Next
     filt = 0 : direct = 0
     For v = 0 To 2
-      SidEnvelope(v)
-      o = ((SidWave(v) - $800) * SidEnv(v)) >> 6
-      If v = 2
-        SidOsc3 = (SidWave(2) >> 4) & 255
-        SidEnv3 = SidEnv(2)
-      EndIf
+      wv = SidWave(v)
+      o = ((wv - $800) * SidEnv(v)) >> 6
+      If v = 2 : SidOsc3 = (wv >> 4) & 255 : EndIf
       If (route >> v) & 1
         filt = filt + o
       ElseIf v < 2 Or (SidReg($18) & $80) = 0
         direct = direct + o
       EndIf
     Next
-    ; filter (Q12 state-variable, two steps a sample)
+    ; filter (Q12 state-variable, two steps a sample), when anything goes through it
+    If route
     SidHp = filt - SidLp - ((SidBp * SidQ) >> 12)
     SidBp = SidBp + ((SidW * SidHp) >> 12)
     SidLp = SidLp + ((SidW * SidBp) >> 12)
@@ -234,12 +236,13 @@ Procedure SidRun(now.i)
     If SidBp < -100000 : SidBp = -100000 : EndIf
     If SidLp > 100000 : SidLp = 100000 : EndIf
     If SidLp < -100000 : SidLp = -100000 : EndIf
+    EndIf
     o = 0
     If mode & $10 : o = o + SidLp : EndIf
     If mode & $20 : o = o + SidBp : EndIf
     If mode & $40 : o = o + SidHp : EndIf
     ; the 6581's DC offset follows the volume: the digi path
-    mix = ((o + direct) * vol) / 15 + vol * 1600
+    mix = (((o + direct) * vmul) >> 16) + vol * 1600
     ; DC blocker, then scale to 16 bits
     SidDcOut = mix - SidDcIn + ((SidDcOut * 255) >> 8)
     SidDcIn = mix
