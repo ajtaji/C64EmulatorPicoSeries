@@ -154,6 +154,10 @@ Procedure C64Main()
   t = Micros()
   While PeekL(@Core1Ready) = 0 And Micros() - t < 1000000 : SafetyPet() : Wend
   AudioBegin()
+  ; the Pico W synthesises the SID at 24 kHz (each sample written twice to the 48 kHz ring)
+  CompilerIf #PM_SRAM_BYTES < 300000
+    SidDiv = 2
+  CompilerEndIf
   C64SetStandard(1)
   If AppBoot() = 0 : AppDemo() : EndIf
   If C64Pal : AppFrameUs = 19950 : Else : AppFrameUs = 16715 : EndIf

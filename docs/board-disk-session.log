@@ -1,0 +1,14 @@
+lease c64 2026-10-23T22:12:57.7995479-05:00 pid 164884 until 22:17
+store write rc=0
+> [NATIVE UPLOADER] Writing image: 57344 of 57344 bytes (100%)
+> [NATIVE UPLOADER] Writing image: 57344 of 57344 bytes (100%)
+> [NATIVE UPLOADER] Wrote pmf_region_20261023221302_0.uf2 to H:\
+> [NATIVE UPLOADER] FLASH COMPLETE! Board will reboot into the new firmware automatically.
+> [NATIVE UPLOADER] Serial monitor: board found on COM7 (USB vendor ID 2E8A), on the same USB connection it was flashed through.
+pmfc: VERIFIED - read back over PICOBOOT and identical; the board is running its program again.
+upload rc=0
+expect 'd64=1': ok
+expect 'PUREMETAL DISK': ok
+expect 'BLOCKS FREE': NOT SEEN
+expect 'PUREMETAL': ok
+released

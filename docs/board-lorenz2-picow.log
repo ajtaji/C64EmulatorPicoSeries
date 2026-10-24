@@ -1,18 +1,198 @@
 > RP2040 ASSEMBLER: 82040 bytes of code run from SRAM at $20000000-$20014077, copied from flash at boot; 110612 bytes of SRAM left free, stacks and reserved windows excluded.
-ROM_TOTAL_RP2040|193784|2097152
-image ends at 0x1002F500
-lease c64 2026-10-23T21:40:42.2570778-05:00 pid 115296 until 21:49
+ROM_TOTAL_RP2040|200768|2097152
+image ends at 0x10031100
+lease c64 2026-10-23T22:14:12.0834801-05:00 pid 138768 until 22:21
 released
 C64 LORENZ batch 2 of 3 clk_khz=200000
 
+rtsn - ok
+jmpw
+jmpw - ok
+jmpi
+jmpi - ok
+beqr
+beqr - ok
+bner
 bner - ok
 bmir
 bmir - ok
 bplr
-bplr
-wrong jump address
+bplr - ok
+bcsr
+bcsr - ok
+bccr
+bccr - ok
+bvsr
+bvsr - ok
+bvcr
+bvcr - ok
+nopn
+nopn - ok
+nopb
+nopb - ok
+nopz
+nopz - ok
+nopzx
+nopzx - ok
+nopa
+nopa - ok
+nopax
+nopax - ok
+asoz
+asoz - ok
+asozx
+asozx - ok
+asoa
+asoa - ok
+asoax
+asoax - ok
+asoay
+asoay - ok
+asoix
+asoix - ok
+asoiy
+asoiy - ok
+rlaz
+rlaz - ok
+rlazx
+rlazx - ok
+rlaa
+rlaa - ok
+rlaax
+rlaax - ok
+rlaay
+rlaay - ok
+rlaix
+rlaix - ok
+rlaiy
+rlaiy - ok
+lsez
+lsez - ok
+lsezx
+lsezx - ok
+lsea
+lsea - ok
+lseax
+lseax - ok
+lseay
+lseay - ok
+lseix
+lseix - ok
+lseiy
+lseiy - ok
+rraz
+rraz - ok
+rrazx
+rrazx - ok
+rraa
+rraa - ok
+rraax
+rraax - ok
+rraay
+rraay - ok
+rraix
+rraix - ok
+rraiy
+rraiy - ok
+dcmz
+dcmz - ok
+dcmzx
+dcmzx - ok
+dcma
+dcma - ok
+dcmax
+dcmax - ok
+dcmay
+dcmay - ok
+dcmix
+dcmix - ok
+dcmiy
+dcmiy - ok
+insz
+insz - ok
+inszx
+inszx - ok
+insa
+insa - ok
+insax
+insax - ok
+insay
+insay - ok
+insix
+insix - ok
+insiy
+insiy - ok
+laxz
+laxz - ok
+laxzy
+laxzy - ok
+laxa
+laxa - ok
+laxay
+laxay - ok
+laxix
+laxix - ok
+laxiy
+laxiy - ok
+axsz
+axsz - ok
+axszy
+axszy - ok
+axsa
+axsa - ok
+axsix
+axsix - ok
+alrb
+alrb - ok
+arrb
+arrb - ok
+aneb
+aneb - ok
+lxab
+lxab - ok
+sbxb
+sbxb - ok
+shaay
+shaay - ok
+shaiy
+shaiy - ok
+shxay
+shxay - ok
+shyax
+shyax - ok
+shsay
+shsay - ok
+ancb
+ancb - ok
+lasay
+lasay - ok
+sbcb(eb)
+sbcb(eb) - ok
+trap1
+trap1 - ok
+trap2
+trap2 - ok
+trap3
+trap3 - ok
+trap4
+trap4 - ok
+trap5
+trap5 - ok
+trap6
+trap6 - ok
+trap7
+trap7 - ok
+trap8
+trap8 - ok
+trap9
+trap9 - ok
+trap10
+trap10 - ok
+trap11
+trap11 - ok
+trap12
+trap12 - ok
+trap13LORENZ_NEXT trap13
 
-*** FAILED: bplr
-
-LORENZ_RESULT batch=2 tests=3 failures=1 instructions=12102020 cycles=42584115 us=7421639 kips=1630
+LORENZ_RESULT batch=2 tests=94 failures=0 instructions=345497800 cycles=1238602992 us=219101966 kips=1576
 

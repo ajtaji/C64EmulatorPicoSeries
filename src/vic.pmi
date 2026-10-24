@@ -29,10 +29,9 @@ Global VicDenSeen.i, VicVcBase.i, VicVc.i, VicRc.i, VicDisplay.i, VicVBorder.i =
 Global VicSprSpr.i, VicSprBg.i, VicViewY0.i = 15, VicViewH.i = 272
 Global VicOut.i, VicLinesDrawn.i
 ; Eight pixels a cell as two 32-bit stores: Mask4(n) has byte k = $FF where bit 3-k of n is
-; set (the leftmost pixel is the lowest byte). Cells are built in GfxBuf (word-aligned),
-; or straight into the line when there is no X scroll, then placed at the scroll offset.
+; set (the leftmost pixel is the lowest byte). Cells are stored
+; as words when there is no X scroll, else byte by byte.
 Global Dim Mask4.l(16)
-Global Dim GfxBuf.l(84)
 
 ProcedureRAM.i VicIrqActive()
   ProcedureReturn VicIrqFlags & VicIrqMask & 15
@@ -255,15 +254,32 @@ ProcedureRAM VicFill(from.i, upto.i, c.i)
   While ad < en : PokeA(ad, c) : ad = ad + 1 : Wend
 EndProcedure
 
-; The 40 cells of a display line (or the idle pattern), every mode, two words a cell.
+; The 40 cells of a display line (or the idle pattern), every mode, as two 32-bit words a
+; cell: stored as words when there is no X scroll (the line is word-aligned), else as bytes.
+; Standard text, the common screen, has a loop of its own.
 ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
-  Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w.i, bg0.i, k0.i, k1.i, k2.i, k3.i, mc.i, base.i, src.i, dst.i
+  Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w0.i, w1.i, bg0.i, k.i, mc.i
   Protected p0.i, p1.i, p2.i, p3.i
   bg0 = VicReg($21) & 15
   If mode >= 5 : bg0 = 0 : EndIf
-  gp = @GfxBuf(0)
-  If xs = 0 : gp = VicOut + 32 : EndIf
-  base = gp
+  gp = VicOut + 32 + xs
+  If mode = 0 And VicDisplay And xs = 0
+    b = bg0 * $01010101
+    For i = 0 To 39
+      g = VicMem(cb + (VmLine(i) << 3) + VicRc)
+      If g
+        f = (ColLine(i) | 16) * $01010101
+        m = Mask4(g >> 4)
+        PokeL(gp, (m & f) | ((~m) & b))
+        m = Mask4(g & 15)
+        PokeL(gp + 4, (m & f) | ((~m) & b))
+      Else
+        PokeL(gp, b) : PokeL(gp + 4, b)
+      EndIf
+      gp = gp + 8
+    Next
+    ProcedureReturn
+  EndIf
   If VicDisplay = 0
     If mode & 4 : g = VicMem($39FF) : Else : g = VicMem($3FFF) : EndIf
   EndIf
@@ -307,26 +323,31 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
       mc = 1 : p0 = 0 : p1 = 0 : p2 = 16 : p3 = 16
     EndIf
     If mc
-      k0 = (g >> 6) & 3 : k1 = (g >> 4) & 3 : k2 = (g >> 2) & 3 : k3 = g & 3
-      If k0 = 0 : w = p0 : ElseIf k0 = 1 : w = p1 : ElseIf k0 = 2 : w = p2 : Else : w = p3 : EndIf
-      If k1 = 0 : m = p0 : ElseIf k1 = 1 : m = p1 : ElseIf k1 = 2 : m = p2 : Else : m = p3 : EndIf
-      PokeL(gp, (w * $0101) | ((m * $0101) << 16))
-      If k2 = 0 : w = p0 : ElseIf k2 = 1 : w = p1 : ElseIf k2 = 2 : w = p2 : Else : w = p3 : EndIf
-      If k3 = 0 : m = p0 : ElseIf k3 = 1 : m = p1 : ElseIf k3 = 2 : m = p2 : Else : m = p3 : EndIf
-      PokeL(gp + 4, (w * $0101) | ((m * $0101) << 16))
+      k = (g >> 6) & 3
+      If k = 0 : w0 = p0 : ElseIf k = 1 : w0 = p1 : ElseIf k = 2 : w0 = p2 : Else : w0 = p3 : EndIf
+      k = (g >> 4) & 3
+      If k = 0 : m = p0 : ElseIf k = 1 : m = p1 : ElseIf k = 2 : m = p2 : Else : m = p3 : EndIf
+      w0 = (w0 * $0101) | ((m * $0101) << 16)
+      k = (g >> 2) & 3
+      If k = 0 : w1 = p0 : ElseIf k = 1 : w1 = p1 : ElseIf k = 2 : w1 = p2 : Else : w1 = p3 : EndIf
+      k = g & 3
+      If k = 0 : m = p0 : ElseIf k = 1 : m = p1 : ElseIf k = 2 : m = p2 : Else : m = p3 : EndIf
+      w1 = (w1 * $0101) | ((m * $0101) << 16)
     Else
       f = f * $01010101 : b = b * $01010101
       m = Mask4((g >> 4) & 15)
-      PokeL(gp, (m & f) | ((~m) & b))
+      w0 = (m & f) | ((~m) & b)
       m = Mask4(g & 15)
-      PokeL(gp + 4, (m & f) | ((~m) & b))
+      w1 = (m & f) | ((~m) & b)
+    EndIf
+    If xs = 0
+      PokeL(gp, w0) : PokeL(gp + 4, w1)
+    Else
+      PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
+      PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
     EndIf
     gp = gp + 8
   Next
-  If xs
-    src = base : dst = VicOut + 32 + xs
-    For i = 0 To 319 : PokeA(dst + i, PeekA(src + i)) : Next
-  EndIf
 EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and

@@ -27,15 +27,18 @@ Global Dim SidPcm.w(#SID_RING)
 Global SidSamples.i, SidPhase.i, SidCps16.i, SidLast.i
 Global SidW.i, SidQ.i, SidLp.i, SidBp.i, SidHp.i, SidDcIn.i, SidDcOut.i
 Global SidOsc3.i, SidEnv3.i, SidMute.i
+; SidDiv = 2 synthesises at 24 kHz and writes each sample twice into the 48 kHz ring (the
+; Pico W, to halve the cost); 1 on the desktop. Set before SidReset.
+Global SidDiv.i = 1
 
 Procedure SidSetCutoff()
   Protected cut.i, hz.i, xr.i, xc.i
   cut = ((SidReg($16) << 3) | (SidReg($15) & 7)) & $7FF
   ; cutoff in Hz, about 30 Hz .. 12 kHz across the 11 bits
   hz = 30 + (cut * 5860) / 1000
-  ; the filter runs twice a sample (96 kHz): w = 2 sin(pi hz / 96000) in Q12;
+  ; the filter runs twice a sample (96 kHz, or 48 kHz when SidDiv = 2): w = 2 sin(pi hz / rate) in Q12;
   ; xr = pi hz / 96000 in Q16, sin xr ~ xr - xr^3/6
-  xr = (hz * 4289) / 2000
+  xr = (hz * 4289 * SidDiv) / 2000
   xc = (((xr * xr) >> 16) * xr) >> 16
   SidW = ((xr - xc / 6) * 2) >> 4
   ; damping 1/Q in Q12: 1.41 at resonance 0 down to about 0.3 at 15
@@ -59,7 +62,7 @@ Procedure SidReset()
   Next
   For i = 0 To 15 : SidRates(i) = PeekU(?SidRateData + i * 2) : Next
   ; cycles per sample in 16.16: C64Hz x 65536 / 48000 = C64Hz x 512 / 375 (C64Hz x 65536 overflows 32 bits)
-  SidCps16 = (C64Hz * 512) / 375
+  SidCps16 = ((C64Hz * 512) / 375) * SidDiv
   SidPhase = 0 : SidLast = C64Clock
   SidLp = 0 : SidBp = 0 : SidHp = 0 : SidDcIn = 0 : SidDcOut = 0
   SidSetCutoff()
@@ -252,6 +255,10 @@ Procedure SidRun(now.i)
     If SidMute : o = 0 : EndIf
     SidPcm(SidSamples & (#SID_RING - 1)) = o
     SidSamples = SidSamples + 1
+    If SidDiv = 2
+      SidPcm(SidSamples & (#SID_RING - 1)) = o
+      SidSamples = SidSamples + 1
+    EndIf
   Wend
 EndProcedure
 

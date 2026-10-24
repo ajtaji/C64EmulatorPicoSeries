@@ -1,0 +1,106 @@
+C64 PureMetal clk_khz=200000
+C64 core1 launch=1
+C64 audio: none in this build
+C64 mode=basic load_trap=1 d64=1
+C64 spi_hz=100000000 frame_us=19950
+
+>>> expect 'd64=1': ok
+C64_STATUS frames=35 us=1005942 emu_us=1005866 worst_us=29415 kips=184 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=2 loads=0 cpu_us=145965 vic_us=408717 sid_us=412684
+C64_STATUS frames=35 us=1009989 emu_us=1009264 worst_us=28946 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=5 loads=0 cpu_us=142110 vic_us=415955 sid_us=412909
+C64_STATUS frames=35 us=1009915 emu_us=1009240 worst_us=28941 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68E stop=0 late=8 loads=0 cpu_us=142121 vic_us=415909 sid_us=412826
+C64_STATUS frames=35 us=1009905 emu_us=1009242 worst_us=28946 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F65E stop=0 late=11 loads=0 cpu_us=142177 vic_us=415929 sid_us=412828
+
+>>> sent LOAD"$",8\n
+C64_STATUS frames=35 us=1021214 emu_us=1020516 worst_us=39755 kips=181 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=14 loads=1 cpu_us=153357 vic_us=415944 sid_us=412795
+C64_STATUS frames=35 us=1009927 emu_us=1009238 worst_us=28946 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=17 loads=1 cpu_us=142076 vic_us=416002 sid_us=412832
+C64_STATUS frames=35 us=1009867 emu_us=1009192 worst_us=28944 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=20 loads=1 cpu_us=142068 vic_us=415979 sid_us=412794
+
+>>> sent LIST\n
+C64_STATUS frames=35 us=1023268 emu_us=1022587 worst_us=31223 kips=187 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=23 loads=1 cpu_us=155440 vic_us=416015 sid_us=412756
+C64_STATUS frames=35 us=1009657 emu_us=1008979 worst_us=28942 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=26 loads=1 cpu_us=141910 vic_us=415891 sid_us=412832
+C64_STATUS frames=35 us=1009886 emu_us=1009212 worst_us=28944 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=29 loads=1 cpu_us=142088 vic_us=415895 sid_us=412930
+
+>>> sent \`s
+SCREEN_BEGIN
+ddddddd   OPEN ROMS GENERIC BUILD       
+dddddd    RELEASE DEV.210823.FC.1       
+ddddd                                   
+dddd      51199 BASIC BYTES FREE        
+                                        
+                                        
+TAPE LOAD NORMAL TURBO                  
+IEC DOLPHIN JIFFY                       
+PAL                                     
+                                        
+READY.                                  
+LOAD"$",8                               
+                                        
+READY.                                  
+LIST                                    
+                                        
+0 "PUREMETAL DISK  " PM 2A              
+2   "RASTERSPLIT"     PRG               
+3   "DEMO"            PRG               
+2   "MODES"           PRG               
+657 BLOCKS FREE.                        
+READY.                                  
+                                        
+                                        
+                                        
+SCREEN_END
+
+>>> expect 'PUREMETAL DISK': ok
+C64_STATUS frames=35 us=1012088 emu_us=1011415 worst_us=31093 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=32 loads=1 cpu_us=142042 vic_us=415904 sid_us=412863
+C64_STATUS frames=35 us=1009836 emu_us=1009165 worst_us=28947 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=35 loads=1 cpu_us=142060 vic_us=415950 sid_us=412794
+C64_STATUS frames=35 us=1009830 emu_us=1009164 worst_us=28944 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BE stop=0 late=38 loads=1 cpu_us=142116 vic_us=415903 sid_us=412790
+
+>>> expect 'BLOCKS FREE': NOT SEEN
+
+>>> sent LOAD"RASTER*",8,1\n
+C64_STATUS frames=35 us=1013362 emu_us=1012630 worst_us=31735 kips=182 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$EC04 stop=0 late=41 loads=2 cpu_us=145389 vic_us=415878 sid_us=412929
+C64_STATUS frames=35 us=1011335 emu_us=1010645 worst_us=29595 kips=179 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=44 loads=2 cpu_us=143571 vic_us=415939 sid_us=412840
+C64_STATUS frames=35 us=1009893 emu_us=1009220 worst_us=28940 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=47 loads=2 cpu_us=142095 vic_us=415945 sid_us=412826
+
+>>> sent RUN\n
+C64_STATUS frames=35 us=1009955 emu_us=1009275 worst_us=28981 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=49 loads=2 cpu_us=142267 vic_us=415905 sid_us=412817
+C64_STATUS frames=35 us=1015363 emu_us=1014685 worst_us=29848 kips=213 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$097A stop=0 late=52 loads=2 cpu_us=147445 vic_us=415958 sid_us=412928
+C64_STATUS frames=35 us=1014011 emu_us=1013338 worst_us=28967 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$097E stop=0 late=55 loads=2 cpu_us=145602 vic_us=416371 sid_us=413047
+C64_STATUS frames=35 us=1013706 emu_us=1013040 worst_us=28957 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0982 stop=0 late=58 loads=2 cpu_us=145395 vic_us=416284 sid_us=413083
+C64_STATUS frames=35 us=1013196 emu_us=1012527 worst_us=28941 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0986 stop=0 late=61 loads=2 cpu_us=145333 vic_us=415843 sid_us=412984
+
+>>> sent \`s
+SCREEN_BEGIN
+ddddd                                   
+dddd      51199 BASIC BYTES FREE        
+                                        
+                                        
+TAPE LOAD NORMAL TURBO                  
+IEC DOLPHIN JIFFY                       
+PAL                                     
+                                        
+READY.                                  
+LOAD"$",8                               
+                                        
+READY.                                  
+LIST           PUREMETAL                
+                                        
+0 "PUREMETAL DISK  " PM 2A              
+2   "RASTERSPLIT"     PRG               
+3   "DEMO"            PRG               
+2   "MODES"           PRG               
+657 BLOCKS FREE.                        
+READY.                                  
+LOAD"RASTER*",8,1                       
+                                        
+READY.                                  
+RUN                                     
+                                        
+SCREEN_END
+
+>>> expect 'PUREMETAL': ok
+C64_STATUS frames=35 us=1015850 emu_us=1015175 worst_us=31216 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0976 stop=0 late=64 loads=2 cpu_us=145477 vic_us=416066 sid_us=413010
+C64_STATUS frames=35 us=1013936 emu_us=1013263 worst_us=28965 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$097C stop=0 late=67 loads=2 cpu_us=145543 vic_us=416361 sid_us=413114
+C64_STATUS frames=35 us=1013492 emu_us=1012826 worst_us=28960 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0984 stop=0 late=70 loads=2 cpu_us=145321 vic_us=416070 sid_us=413022
+C64_STATUS frames=35 us=1013247 emu_us=1012581 worst_us=28940 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$097C stop=0 late=73 loads=2 cpu_us=145506 vic_us=415811 sid_us=412940
+C64_STATUS frames=35 us=1013794 emu_us=1013127 worst_us=28959 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0982 stop=0 late=76 loads=2 cpu_us=145500 vic_us=416216 sid_us=413045
+C64_STATUS frames=35 us=1013826 emu_us=1013153 worst_us=28963 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0986 stop=0 late=79 loads=2 cpu_us=145335 vic_us=416311 sid_us=413163

@@ -28,8 +28,9 @@ Not yet: a real 1541 (fast loaders that drive the disk themselves), cartridges f
 
 Wolfgang Lorenz's C64 test suite 2.15 (public domain, `tests/lorenz/`):
 
-- every 6510 test (238, from `start` to `trap17`) passes on the desktop core and on the whole desktop
-  machine; on the Pico W they run in three batches (`src/tests/lorenzN.picow`, results in `docs/`);
+- every 6510 test (238, from `start` to `trap17`) passes on the desktop core, on the whole desktop
+  machine, and on the Pico W in three flash-embedded batches (`src/tests/lorenzN.picow`;
+  `docs/lorenz-picow-batch*.log`), executing the same instruction counts as the desktop;
 - `cputiming` (instruction timing measured with a CIA timer) and `cpuport` pass on the whole machine;
 - the CIA, IRQ and banking tests that follow need the real KERNAL's state and are run once ROMs are present.
 
