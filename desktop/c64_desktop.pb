@@ -37,7 +37,7 @@ Global EmuAccum.d, EmuLastUs.q, EmuFrameUs.d = 1000000.0 * 19656 / 985248
 Global FpsShown.d, FpsFrames.i, FpsSince.q, IpsShown.i, IpsInstr.i, EmuUsShown.d, EmuUsSum.q
 Global ActiveTab.i, StatusLine$, RomDir$, Prefs$, WantPal.i = 1
 Global *RomBasic, *RomKernal, *RomChar, *Program, ProgramSize.i, *Disk, DiskSize.i, ProgramKind$
-Global LastDraw.q, ShotFile$, ShotAtMs.q
+Global LastDraw.q, ShotFile$, ShotAtMs.q, GlCurrent.i
 Global TestDir$ = GetPathPart(ProgramFilename()) + "..\tests\lorenz\"
 Global *BenchRec, BenchLine$
 
@@ -334,7 +334,8 @@ Procedure Tick()
   Neon_ChromeBeginFrame(mx, my, down, Wheel, KeyCode, KeyChar, dt)
   Wheel = 0 : KeyCode = 0 : KeyChar = 0
 
-  SetGadgetAttribute(Gl, #PB_OpenGL_SetContext, #True)
+  ; one context on one thread: made current once (wglMakeCurrent cost ~8 ms a call on this PC)
+  If GlCurrent = 0 : SetGadgetAttribute(Gl, #PB_OpenGL_SetContext, #True) : GlCurrent = 1 : EndIf
   glBindFramebuffer(#GL_FRAMEBUFFER, 0)
   glDisable_(#GL_SCISSOR_TEST)
   glViewport_(GL_ViewportX, GL_ViewportY, GL_ViewportW, GL_ViewportH)
@@ -386,8 +387,26 @@ Procedure Tick()
 EndProcedure
 
 ; ---------------------------------------------------------------- main
+; Windows 11 slows a windowed process it judges to be in the background (EcoQoS power throttling);
+; an emulator keeping real time must not be, so the process opts out of execution-speed throttling.
+Prototype.i ProtoSetProcessInformation(process.i, infoClass.l, *info, size.l)
+Procedure NoPowerThrottling()
+  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
+    Protected lib.i = OpenLibrary(#PB_Any, "kernel32.dll"), Set.ProtoSetProcessInformation
+    Protected Dim st.l(2)
+    If lib
+      Set = GetFunction(lib, "SetProcessInformation")
+      ; PROCESS_POWER_THROTTLING_STATE: version 1, control EXECUTION_SPEED (1), state 0 = off
+      st(0) = 1 : st(1) = 1 : st(2) = 0
+      If Set : Set(GetCurrentProcess_(), 4, @st(0), 12) : EndIf
+      CloseLibrary(lib)
+    EndIf
+  CompilerEndIf
+EndProcedure
+
 Procedure Main()
   Protected ev.i, file$, et.i, k.i, roms$
+  NoPowerThrottling()
   UiScale = DesktopResolutionX() : If UiScale < 1 : UiScale = 1 : EndIf
   Gl = OpenGLWindow("PureMetal C64", 1440, 860, #PB_Window_SystemMenu | #PB_Window_ScreenCentered | #PB_Window_SizeGadget | #PB_Window_MinimizeGadget | #PB_Window_MaximizeGadget)
   If Gl = 0 : MessageRequester("PureMetal C64", "OpenGL could not be started.") : End 1 : EndIf

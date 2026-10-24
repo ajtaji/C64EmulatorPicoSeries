@@ -45,12 +45,12 @@ Procedure KbInit()
   KbSet(#VK_LSHIFT, 1, 7) : KbSet(#VK_RSHIFT, 6, 4)
 EndProcedure
 
+; The whole keyboard read once a frame (GetKeyboardState: the state this thread's message queue has
+; reached, which the main loop drains every pass). GetAsyncKeyState a key at a time cost ~200 us a
+; call on this PC - 14 ms a frame for the ~70 keys, the emulator then at 9-16 frames/s.
+Global Dim KbState.a(255)
 Procedure.i KbDown(vk.i)
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-    ProcedureReturn Bool(GetAsyncKeyState_(vk) & $8000)
-  CompilerElse
-    ProcedureReturn 0
-  CompilerEndIf
+  ProcedureReturn Bool(KbState(vk & 255) & $80)
 EndProcedure
 
 ; The matrix and the joystick from the keys held now (only while the window has focus).
@@ -59,6 +59,9 @@ Procedure.i KbApply(active.i)
   Protected vk.i, k.i, col.i, row.i, shift.i, joy.i
   For col = 0 To 7 : KeyRows(col) = 0 : Next
   If active = 0 : KbRestoreHeld = 0 : ProcedureReturn 0 : EndIf
+  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
+    GetKeyboardState_(@KbState(0))
+  CompilerEndIf
   If KbJoyKeys
     If KbDown(#VK_UP) : joy | 1 : EndIf
     If KbDown(#VK_DOWN) : joy | 2 : EndIf

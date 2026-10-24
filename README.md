@@ -22,6 +22,12 @@ your own. Without them both versions run a built-in demo of this project's own.
 | SID | 3 voices: triangle, saw, pulse, noise and their combinations, hard sync, ring modulation, the real envelope rate table with its exponential decay, a state-variable filter (low / band / high pass, cutoff, resonance), volume with its DC offset (so $D418 digis play); 48 kHz |
 | Loading | a .PRG put straight into RAM (BASIC pointers set, RUN typed); a .D64 in drive 8 through a trap on the KERNAL's LOAD: wildcards, `LOAD"$",8` directories, `,8,1` |
 
+## A demo written in PureMetal
+
+`demo/` holds a C64 program written in PureMetal itself and compiled by PureMetal Forge for its
+Commodore 64 board: raster bars, a smooth scroller, a bouncing sprite and three SID voices
+(`demo/README.md`). It runs on a real C64 as well as in this emulator.
+
 Not yet: a real 1541 (fast loaders that drive the disk themselves), cartridges from .CRT files, tape.
 A KERNAL without Commodore's LOAD code at $F4A5 (the free MEGA65 Open ROMs used for testing) gets the disk
 trap at its $FFD5 jump-table entry instead.
@@ -49,8 +55,13 @@ Measured on the Pico W (COM7, 200 MHz, the time split from the firmware's status
 
 | Program | Frames/s | Worst frame | CPU | VIC-II | SID + line end |
 |---|---:|---:|---:|---:|---:|
-| BASIC at READY. (Open ROMs) | 50.1 (real time) | 18.5 ms | 4.0 ms | 7.3 ms | 4.6 ms |
+| BASIC at READY. (Open ROMs) | 50.1 (real time) | 17.9 ms | 4.1 ms | 11.3 ms | 1.7 ms |
 | Built-in demo: 3-voice music, sprite, raster IRQs | 50.1 (real time) | 19.0-19.7 ms | 4.6 ms | 8.3 ms | 5.6 ms |
+| Dungeon of ROTT V2 (free SEUCK game) from a .D64, in play | 50.1 (real time) | 18.9 ms | 5.5 ms | 9.3 ms | 2.8 ms |
+| `demo/c64demo.prg` (PureMetal: raster bars, scroller, sprite, 3 voices) | 50.1 (real time) | 18.7 ms | 4.5 ms | 7.8 ms | 5.1 ms |
+
+No late frame in any of these runs (`docs/board-rott-pmdemo-4.log`). The VIC-II time includes any
+wait for core 1 to take lines from the ring: at BASIC, with little else to do, that is 5 ms a frame.
 
 A PAL frame is 19.95 ms. The 6510 runs 1.6 M instructions/s (a C64 needs about 0.3 M). On the Pico W
 the SID is synthesised at 24 kHz and each sample written twice into the 48 kHz stream.
