@@ -32,18 +32,32 @@ Global Dim CiaSdr.i(2)
 Global Dim KeyRows.i(8)
 Global Joy1.i, Joy2.i
 #CIA_START_DELAY = 2
+Global CiaTmpCount.i, CiaTmpStop.i, CiaTmpLast.i, CiaIrqDelay.i = 2, CiaIrDelay.i = 1
+; the clock of each timer's last underflow (the IR bit and the IRQ line follow it a cycle later)
+Global Dim CiaTaUf.i(2)
+Global Dim CiaTbUf.i(2)
 #CIA_FAR = 1000000
 
 
+; Is the interrupt bit up at clock now: a masked-in source whose flag is at
+; least CiaIrDelay cycles old (the timers'), or any other masked-in source.
+Procedure.i CiaIrReady(unit.i, now.i)
+  Protected f.i
+  f = CiaIcr(unit) & CiaMask(unit) & $1F
+  If f & $1C : ProcedureReturn 1 : EndIf
+  If (f & 1) And now - CiaTaUf(unit) >= CiaIrDelay : ProcedureReturn 1 : EndIf
+  If (f & 2) And now - CiaTbUf(unit) >= CiaIrDelay : ProcedureReturn 1 : EndIf
+  ProcedureReturn 0
+EndProcedure
+Global CiaLinesAt.i
 Procedure CiaUpdateLines()
-  Cia1Irq = Bool((CiaIcr(0) & CiaMask(0) & $1F) <> 0)
-  Cia2Nmi = Bool((CiaIcr(1) & CiaMask(1) & $1F) <> 0)
+  Cia1Irq = CiaIrReady(0, CiaLinesAt)
+  Cia2Nmi = CiaIrReady(1, CiaLinesAt)
   C64UpdateIrq()
 EndProcedure
 
 ; Advance a counter by n cycles; returns the underflows, leaving the new value
 ; in CiaTmpCount. One-shot timers stop at their first underflow (CiaTmpStop).
-Global CiaTmpCount.i, CiaTmpStop.i
 Procedure.i CiaCount(count.i, latch.i, n.i, oneshot.i)
   Protected rest.i, uf.i, period.i
   CiaTmpStop = 0
@@ -53,12 +67,13 @@ Procedure.i CiaCount(count.i, latch.i, n.i, oneshot.i)
   EndIf
   rest = n - count - 1
   If oneshot
-    CiaTmpCount = latch : CiaTmpStop = 1
+    CiaTmpCount = latch : CiaTmpStop = 1 : CiaTmpLast = count + 1
     ProcedureReturn 1
   EndIf
   period = latch + 1
   uf = 1 + rest / period
   CiaTmpCount = latch - (rest % period)
+  CiaTmpLast = count + 1 + (uf - 1) * period
   ProcedureReturn uf
 EndProcedure
 
@@ -80,7 +95,7 @@ Procedure CiaSync(unit.i, now.i)
     ufa = CiaCount(CiaTa(unit), CiaTaLatch(unit), na, CiaCra(unit) & 8)
     CiaTa(unit) = CiaTmpCount
     If CiaTmpStop : CiaCra(unit) = CiaCra(unit) & $FE : EndIf
-    If ufa : CiaIcr(unit) = CiaIcr(unit) | 1 : EndIf
+    If ufa : CiaIcr(unit) = CiaIcr(unit) | 1 : CiaTaUf(unit) = now - na + CiaTmpLast : EndIf
   EndIf
   If CiaCrb(unit) & 1
     tbmode = (CiaCrb(unit) >> 5) & 3
@@ -90,11 +105,13 @@ Procedure CiaSync(unit.i, now.i)
         ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), nb, CiaCrb(unit) & 8)
         CiaTb(unit) = CiaTmpCount
         If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
+        If ufb : CiaTbUf(unit) = now - nb + CiaTmpLast : EndIf
       EndIf
     ElseIf tbmode >= 2 And ufa > 0
       ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), ufa, CiaCrb(unit) & 8)
       CiaTb(unit) = CiaTmpCount
       If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
+      If ufb : CiaTbUf(unit) = CiaTaUf(unit) : EndIf
     EndIf
     If ufb : CiaIcr(unit) = CiaIcr(unit) | 2 : EndIf
   EndIf
@@ -120,12 +137,25 @@ Procedure CiaPlan(now.i)
       If t - best < 0 : best = t : EndIf
     EndIf
   Next
+  best = best + CiaIrqDelay
+  ; a flag already up whose interrupt bit is still a cycle away
+  For unit = 0 To 1
+    If (CiaIcr(unit) & CiaMask(unit) & 1) And CiaIrReady(unit, now) = 0
+      t = CiaTaUf(unit) + CiaIrDelay
+      If t - best < 0 : best = t : EndIf
+    EndIf
+    If (CiaIcr(unit) & CiaMask(unit) & 2) And CiaIrReady(unit, now) = 0
+      t = CiaTbUf(unit) + CiaIrDelay
+      If t - best < 0 : best = t : EndIf
+    EndIf
+  Next
   If best - now < 1 : best = now + 1 : EndIf
   CiaNextEvent = best
 EndProcedure
 
 Procedure CiaSyncAll(now.i)
   CiaSync(0, now) : CiaSync(1, now)
+  CiaLinesAt = now
   CiaUpdateLines()
   CiaPlan(now)
 EndProcedure
@@ -231,12 +261,14 @@ Procedure CiaFrameTick()
       EndIf
     EndIf
   Next
+  CiaLinesAt = C64Clock
   CiaUpdateLines()
 EndProcedure
 
 Procedure.i CiaRead(unit.i, reg.i, now.i)
   Protected v.i, b.i
   CiaSync(unit, now)
+  CiaLinesAt = now
   b = unit * 4
   If reg = 0
     If unit = 0 : ProcedureReturn CiaKeyPortA() : EndIf
@@ -274,7 +306,7 @@ Procedure.i CiaRead(unit.i, reg.i, now.i)
   If reg = 12 : ProcedureReturn CiaSdr(unit) : EndIf
   If reg = 13
     v = CiaIcr(unit)
-    If v & CiaMask(unit) & $1F : v = v | $80 : EndIf
+    If CiaIrReady(unit, now) : v = v | $80 : EndIf
     CiaIcr(unit) = 0
     CiaUpdateLines()
     CiaPlan(now)
@@ -287,6 +319,7 @@ EndProcedure
 Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
   Protected b.i, i.i
   CiaSync(unit, now)
+  CiaLinesAt = now
   b = unit * 4
   v = v & 255
   If reg = 0

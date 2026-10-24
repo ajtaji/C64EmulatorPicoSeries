@@ -64,7 +64,7 @@ Procedure BenchEvent(kind.i, rec.i)
     BenchFinished = 1 : Stopped = 1
   EndIf
   If kind = 2
-    PrintN("") : PrintN("BENCH_NEXT " + PeekS(@BenchName(0), BenchNameLen, #PB_Ascii))
+    PrintN("") : PrintN("BENCH_NEXT " + PeekS(@BenchName(0), BenchNameLen, #PB_Ascii) + " (b7=" + Str(M($B7)) + " bb=$" + Hex(M($BB) | (M($BC) << 8)) + " ret=$" + Hex(M($101 + S) | (M($102 + S) << 8)) + " line=" + BenchLine$ + ")")
   ElseIf kind = 3
     PrintN(BenchLine$) : BenchLine$ = ""
     PrintN("*** FAILED: " + RecName(rec))
@@ -130,10 +130,24 @@ For i = 0 To CountProgramParameters() - 1
     Case "--demo" : mode$ = "demo"
 
     Case "--one" : BenchOne = 1
+    Case "--roms" : i + 1 : romdir$ = ProgramParameter(i)
+    Case "--irqdelay" : i + 1 : CiaIrqDelay = Val(ProgramParameter(i))
   EndSelect
 Next
 
 If mode$ = "bench"
+  If romdir$
+    Define bd.i, bn$, bsz.i
+    If Right(romdir$, 1) <> "\" : romdir$ + "\" : EndIf
+    bd = ExamineDirectory(#PB_Any, romdir$, "*.*")
+    While bd And NextDirectoryEntry(bd)
+      bn$ = LCase(DirectoryEntryName(bd)) : bsz = DirectoryEntrySize(bd)
+      If bsz = 8192 And FindString(bn$, "basic") : *basic = LoadFile(romdir$ + DirectoryEntryName(bd), @size) : EndIf
+      If bsz = 8192 And FindString(bn$, "kernal") : *kernal = LoadFile(romdir$ + DirectoryEntryName(bd), @size) : EndIf
+      If bsz = 4096 And FindString(bn$, "char") : *chars = LoadFile(romdir$ + DirectoryEntryName(bd), @size) : EndIf
+    Wend
+    If *basic And *kernal And *chars : C64SetRoms(*basic, *kernal, *chars) : BenchKeepRoms = 1 : EndIf
+  EndIf
   Define *nm = AllocateMemory(64)
   PokeS(*nm, first$, -1, #PB_Ascii)
   If BenchStart(*nm, Len(first$)) = 0 : PrintN("no test " + first$) : End 2 : EndIf

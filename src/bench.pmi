@@ -14,12 +14,16 @@ Declare BenchPrint(c.i)
 Declare BenchEvent(kind.i, rec.i)
 Global BenchMode.i, BenchFailures.i, BenchTests.i, BenchFinished.i, BenchCurrent.i, BenchStopName.i
 Global Dim BenchName.a(32)
-Global BenchNameLen.i
+Global BenchNameLen.i, BenchKeepRoms.i
 
+; With BenchKeepRoms the ROMs already loaded stay (BASIC's number printer at $BDCD
+; is what the CIA tests report their results with); the bench's entries go over them.
 Procedure BenchRoms()
   Protected i.i
-  For i = 0 To 8191 : RomKernal(i) = 0 : RomBasic(i) = 0 : Next
-  For i = 0 To 4095 : RomChar(i) = 0 : Next
+  If BenchKeepRoms = 0
+    For i = 0 To 8191 : RomKernal(i) = 0 : RomBasic(i) = 0 : Next
+    For i = 0 To 4095 : RomChar(i) = 0 : Next
+  EndIf
   For i = 0 To 18 : RomKernal($FF48 - $E000 + i) = PeekA(?BenchIrq + i) : Next
   RomKernal($FFFE - $E000) = $48 : RomKernal($FFFF - $E000) = $FF
   RomKernal($FFFA - $E000) = $43 : RomKernal($FFFB - $E000) = $FE
@@ -28,6 +32,10 @@ Procedure BenchRoms()
   RomKernal($FFD2 - $E000) = $02 : RomKernal($E16F - $E000) = $02 : RomKernal($FFE4 - $E000) = $02
   RomBasic($A002 - $A000) = $00 : RomBasic($A003 - $A000) = $80
   RomBasic($A474 - $A000) = $02
+  ; the KERNAL's IRQ end ($EA31: acknowledge CIA 1, restore the registers, RTI) and its NMI
+  ; entry ($FE47: save the registers, acknowledge CIA 2, restore, RTI)
+  For i = 0 To 8 : RomKernal($EA31 - $E000 + i) = PeekA(?BenchIrqEnd + i) : Next
+  For i = 0 To 13 : RomKernal($FE47 - $E000 + i) = PeekA(?BenchNmi + i) : Next
   C64RomsLoaded = 1
 EndProcedure
 
@@ -41,6 +49,7 @@ Procedure BenchLoad(rec.i)
     M((adr + i - 2) & $FFFF) = PeekA(dat + i)
   Next
   M($0002) = $00 : M($01FE) = $FF : M($01FF) = $7F
+  M($0314) = $31 : M($0315) = $EA : M($0316) = $31 : M($0317) = $EA : M($0318) = $47 : M($0319) = $FE
   ; in RAM too, for the tests that bank the ROMs out
   M($A002) = $00 : M($A003) = $80 : M($FFFE) = $48 : M($FFFF) = $FF
   For i = 0 To 18 : M($FF48 + i) = PeekA(?BenchIrq + i) : Next
@@ -103,6 +112,11 @@ Procedure.i BenchStart(nameAdr.i, n.i)
   BenchMode = 1
   BenchRoms()
   C64PowerOn()
+  ; CIA 1 as the KERNAL leaves it: timer A running continuously at the 60 Hz jiffy
+  ; rate, its interrupt enabled
+  If C64Pal : CiaWrite(0, 4, $25, C64Clock) : CiaWrite(0, 5, $40, C64Clock) : Else : CiaWrite(0, 4, $95, C64Clock) : CiaWrite(0, 5, $42, C64Clock) : EndIf
+  CiaWrite(0, 13, $81, C64Clock)
+  CiaWrite(0, 14, $11, C64Clock)
   rec = BenchFile(nameAdr, n)
   If rec = 0 : ProcedureReturn 0 : EndIf
   BenchLoad(rec)
@@ -112,5 +126,9 @@ EndProcedure
 
 DataSection
 BenchIrq:
+  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
+BenchIrqEnd:
+  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
+BenchNmi:
   Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
 EndDataSection
