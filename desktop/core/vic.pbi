@@ -172,7 +172,16 @@ Procedure.i VicSprites()
     If SprDisp(n) : any = 1 : EndIf
   Next
   If any = 0 : ProcedureReturn 0 : EndIf
-  For q = 0 To #VIC_W - 1 : SprOcc(q) = 0 : Next
+  ; clear the collision buffer only where a sprite can be (up to 48 pixels from its X)
+  For n = 0 To 7
+    If SprDisp(n)
+      pos = (VicReg(n * 2) | (((VicReg($10) >> n) & 1) << 8)) + 8
+      If pos >= 504 : pos = pos - 504 : EndIf
+      w = pos + 48
+      If w > #VIC_W : w = #VIC_W : EndIf
+      For q = pos To w - 1 : SprOcc(q) = 0 : Next
+    EndIf
+  Next
   ss = 0 : sb = 0
   For n = 7 To 0 Step -1
     If SprDisp(n)

@@ -146,6 +146,17 @@ Procedure.i SidWave(v.i)
   Protected ctl.i, acc.i, out.i, w.i, tri.i, src.i, n.i
   ctl = SidReg(v * 7 + 4)
   acc = SidAcc(v)
+  ; one waveform alone, no ring modulation, no test bit: the common cases, straight out
+  w = ctl & $FC
+  If w = $20 : ProcedureReturn acc >> 12 : EndIf
+  If w = $40
+    If (acc >> 12) >= (SidReg(v * 7 + 2) | ((SidReg(v * 7 + 3) & 15) << 8)) : ProcedureReturn $FFF : EndIf
+    ProcedureReturn 0
+  EndIf
+  If w = $10
+    If acc & $800000 : ProcedureReturn ((~acc) >> 11) & $FFF : EndIf
+    ProcedureReturn (acc >> 11) & $FFF
+  EndIf
   out = $FFF
   w = 0
   If ctl & $10
