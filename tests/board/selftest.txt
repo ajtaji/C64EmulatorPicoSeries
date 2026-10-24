@@ -1,0 +1,9 @@
+# tests/selftest.prg (store PRG 0) RUN from BASIC: PLA, CIAs, VIC-II, SID and NMI check themselves.
+expect C64_STATUS 20
+send \`b
+wait 4
+send \`0
+wait 8
+send \`s
+expect PASSED 5
+wait 2

@@ -181,6 +181,8 @@ If mode$ = "demo"
   C64PowerOn()
   C64InjectPrg(*prg, size, 0)
   PC = PeekA(*prg) | (PeekA(*prg + 1) << 8)
+  ; a BASIC-started program (10 SYS 2061 at $0801): its code at $080D
+  If PC = $0801 : PC = $080D : EndIf
   Define peak.i, k.i
   Define wavf.i, cur.i
   If wav$ : wavf = CreateFile(#PB_Any, wav$) : WriteData(wavf, ?WavHead, 44) : EndIf
@@ -199,6 +201,7 @@ If mode$ = "demo"
   For k = 0 To #SID_RING - 1
     If Abs(SidPcm(k)) > peak : peak = Abs(SidPcm(k)) : EndIf
   Next
+  If PC <> $C000 And PeekA(*prg) = 1 : Print(ScreenText()) : PrintN("SELFTEST done=$" + Hex(M(3)) + " failures=" + Str(M(2)) + " irqs=" + Str(M(8)) + " irq_line=" + Str(M(7))) : EndIf
   PrintN("PERF cpu_us=" + Str(PerfCpuUs) + " vic_us=" + Str(PerfVicUs) + " sid_us=" + Str(PerfSidUs))
   PrintN("DEMO frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " raster_irqs_flag=" + Str(VicIrqFlags) + " sid_samples=" + Str(SidSamples) + " sid_peak=" + Str(peak))
   If shot$ : SaveShot(shot$) : EndIf
