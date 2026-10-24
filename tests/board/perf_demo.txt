@@ -1,0 +1,5 @@
+# The built-in demo (music on three voices, a sprite, raster IRQs): status lines for the speed.
+expect C64_STATUS 20
+send \`d
+expect C64 mode=demo 5
+wait 10

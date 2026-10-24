@@ -1,4 +1,0 @@
-lease c64 2026-10-23T22:26:06.4103341-05:00 pid 124244 until 22:29
-upload rc=0
-expect 'C64 mode=basic': ok
-released
