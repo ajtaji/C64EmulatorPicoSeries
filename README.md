@@ -23,6 +23,8 @@ your own. Without them both versions run a built-in demo of this project's own.
 | Loading | a .PRG put straight into RAM (BASIC pointers set, RUN typed); a .D64 in drive 8 through a trap on the KERNAL's LOAD: wildcards, `LOAD"$",8` directories, `,8,1` |
 
 Not yet: a real 1541 (fast loaders that drive the disk themselves), cartridges from .CRT files, tape.
+A KERNAL without Commodore's LOAD code at $F4A5 (the free MEGA65 Open ROMs used for testing) gets the disk
+trap at its $FFD5 jump-table entry instead.
 
 ## Tests
 
@@ -42,6 +44,16 @@ GP26/GP27; button A GP15 (fire), button B GP14 (SPACE).
 Core 0 runs the machine a frame at a time, paced to 50.12 Hz (PAL); core 1 converts each line to RGB565
 and streams it to the panel by DMA, and drives the radio. The 384 x 272 picture sits 1:1 in the middle
 of the 480 x 320 panel.
+
+Measured on the Pico W (COM7, 200 MHz, the time split from the firmware's status line):
+
+| Program | Frames/s | Worst frame | CPU | VIC-II | SID + line end |
+|---|---:|---:|---:|---:|---:|
+| BASIC at READY. (Open ROMs) | 50.1 (real time) | 18.5 ms | 4.0 ms | 7.3 ms | 4.6 ms |
+| Built-in demo: 3-voice music, sprite, raster IRQs | 50.1 (real time) | 19.0-19.7 ms | 4.6 ms | 8.3 ms | 5.6 ms |
+
+A PAL frame is 19.95 ms. The 6510 runs 1.6 M instructions/s (a C64 needs about 0.3 M). On the Pico W
+the SID is synthesised at 24 kHz and each sample written twice into the 48 kHz stream.
 
 ROMs and programs go in the C64's flash region ($1F0000, 60 KB):
 
