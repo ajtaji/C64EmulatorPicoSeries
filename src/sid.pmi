@@ -189,7 +189,7 @@ EndProcedure
 
 ; Produce the samples due by machine clock now.
 ProcedureRAM SidRun(now.i)
-  Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i, vmul.i, wv.i
+  Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i, vmul.i, wv.i, syncs.i
   n = now - SidLast
   If n <= 0 : ProcedureReturn : EndIf
   If n > 20000 : n = 20000 : EndIf
@@ -202,6 +202,8 @@ ProcedureRAM SidRun(now.i)
   vmul = vol * 4369
   For v = 0 To 2 : SidEnvelope(v, n) : Next
   SidEnv3 = SidEnv(2)
+  ; hard sync and noise are rare: their per-sample work only when a voice uses them
+  syncs = (SidReg(4) | SidReg(11) | SidReg(18)) & 2
   While SidPhase >= SidCps16
     SidPhase = SidPhase - SidCps16
     For v = 0 To 2
@@ -212,9 +214,10 @@ ProcedureRAM SidRun(now.i)
         acc = (old + SidStep(v)) & $FFFFFF
       EndIf
       SidMsbRise(v) = Bool((old & $800000) = 0 And (acc & $800000) <> 0)
-      ; noise: one LFSR clock per rising edge of accumulator bit 19
+      ; noise: one LFSR clock per rising edge of accumulator bit 19 (only while the voice plays
+      ; noise; the register then holds still, which no one can hear)
       k = 0
-      If (SidReg(v * 7 + 4) & 8) = 0
+      If (SidReg(v * 7 + 4) & $88) = $80
         k = ((old + SidStep(v) + $80000) >> 20) - ((old + $80000) >> 20)
         If k > 32 : k = 32 : EndIf
       EndIf
@@ -226,11 +229,13 @@ ProcedureRAM SidRun(now.i)
       SidAcc(v) = acc
     Next
     ; hard sync: a voice restarts when the previous one's MSB rises
+    If syncs
     For v = 0 To 2
       i = v - 1
       If i < 0 : i = 2 : EndIf
       If (SidReg(v * 7 + 4) & 2) <> 0 And SidMsbRise(i) : SidAcc(v) = 0 : EndIf
     Next
+    EndIf
     filt = 0 : direct = 0
     For v = 0 To 2
       ; a silent voice costs nothing (voice 3's waveform is still read back through OSC3)
