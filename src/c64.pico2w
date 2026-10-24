@@ -1,0 +1,7 @@
+; The C64 for the Pico 2 W with the LAFVIN ST7796 panel. Public build: no sound.
+#C64_AUDIO = 0
+EnableExplicit
+XIncludeFile "platform_rp2350.pico2"
+XIncludeFile "libs_rp2350.pico2"
+XIncludeFile "c64_app.pmi"
+C64Main()

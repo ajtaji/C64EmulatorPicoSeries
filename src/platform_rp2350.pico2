@@ -1,0 +1,16 @@
+; The board's services for the C64: clocks, timer, USB serial (with the
+; compiler's upload path), the watchdog, and the serial print helpers.
+XIncludeFile "RP2350/Lib/multicore_smp.pico2"
+#CLOCK_KHZ = 150000
+XIncludeFile "RP2350/Lib/clocks.pico2"
+XIncludeFile "RP2350/Lib/timer.pico2"
+XIncludeFile "RP2350/Lib/uart.pico2"
+XIncludeFile "RP2350/Lib/usb_serial.pico2"
+XIncludeFile "RP2350/Lib/safety.pico2"
+XIncludeFile "serial_out.pmi"
+; Core 1 runs Core1Main() (both cores Cortex-M33, one image). 1 = started.
+Procedure.i PlatformLaunchCore1()
+  McCore1ReleaseHold()
+  If McLaunchCore1() = 6 : ProcedureReturn 1 : EndIf
+  ProcedureReturn 0
+EndProcedure

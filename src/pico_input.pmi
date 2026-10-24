@@ -1,0 +1,50 @@
+; The LAFVIN carrier's controls as the C64's joystick in port 2: the stick
+; (ADC GP26 / GP27) is the four directions, button A (GP15) is fire, button B
+; (GP14) is the SPACE key (what most games ask for to start). Sampled at 250 Hz.
+Global InCenterX.i = 2048, InCenterY.i = 2048, InLast.i, InDirs.i, InButtons.i, InSpaceHeld.i
+Global InHostJoy.i, InHostJoyUntil.i
+
+Procedure InputBegin()
+  Protected v.i
+  pinMode(15, #INPUT_PULLUP) : pinMode(14, #INPUT_PULLUP)
+  analogReadResolution(12)
+  v = analogRead(26) : If v > 1400 And v < 2700 : InCenterX = v : EndIf
+  v = analogRead(27) : If v > 1400 And v < 2700 : InCenterY = v : EndIf
+  InLast = Micros()
+EndProcedure
+
+Procedure InputPoll()
+  Protected now.i, ax.i, ay.i, d.i, b.i
+  now = Micros()
+  If now - InLast < 4000 : ProcedureReturn : EndIf
+  InLast = now
+  ax = analogReadChannel(0) : ay = analogReadChannel(1)
+  b = (1 - digitalRead(15)) | ((1 - digitalRead(14)) << 1)
+  d = InDirs
+  If ax >= 0 And ay >= 0
+    ; engage at 750 counts from centre, release inside 450
+    If ax < InCenterX - 750
+      d = (d & 3) | 4
+    ElseIf ax > InCenterX + 750
+      d = (d & 3) | 8
+    ElseIf ax > InCenterX - 450 And ax < InCenterX + 450
+      d = d & 3
+    EndIf
+    If ay > InCenterY + 750
+      d = (d & 12) | 1
+    ElseIf ay < InCenterY - 750
+      d = (d & 12) | 2
+    ElseIf ay > InCenterY - 450 And ay < InCenterY + 450
+      d = d & 12
+    EndIf
+  EndIf
+  InDirs = d : InButtons = b
+  Joy2 = d | ((b & 1) << 4)
+  If now - InHostJoyUntil < 0 : Joy2 = Joy2 | InHostJoy : EndIf
+  ; button B holds SPACE (column 7, row 4)
+  If b & 2
+    KeyRows(7) = KeyRows(7) | $10 : InSpaceHeld = 1
+  ElseIf InSpaceHeld
+    KeyRows(7) = KeyRows(7) & (~$10) : InSpaceHeld = 0
+  EndIf
+EndProcedure

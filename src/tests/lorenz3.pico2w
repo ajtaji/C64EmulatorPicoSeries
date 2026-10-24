@@ -2,8 +2,8 @@
 #LORENZ_BATCH = 3
 #LORENZ_BATCHES = 3
 EnableExplicit
-XIncludeFile "../platform_rp2350.pico"
-XIncludeFile "../cpu6510.pico"
-XIncludeFile "lorenz_data3.pico"
-XIncludeFile "../lorenz_bench.pico"
+XIncludeFile "../platform_rp2350.pico2"
+XIncludeFile "../cpu6510.pmi"
+XIncludeFile "lorenz_data3.pmi"
+XIncludeFile "../lorenz_bench.pmi"
 LorenzMain()

@@ -1,0 +1,10 @@
+; No radio in this build: the SID still runs (its ring is there), nothing plays it.
+Global AudioRunning.i, AudioLive.i, AudioUnderruns.i, AudioPackets.i
+Global Core1ParkRequest.i, Core1Parked.i
+Procedure C64BluetoothSetPeer(src.i)
+EndProcedure
+Procedure AudioBegin()
+  Say("C64 audio: none in this build") : Eol()
+EndProcedure
+ProcedureRAM AudioPoll()
+EndProcedure

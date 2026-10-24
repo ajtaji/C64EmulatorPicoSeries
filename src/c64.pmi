@@ -1,0 +1,282 @@
+; The Commodore 64: the 6510's port and the PLA's banking, the I/O page, the
+; interrupt lines, and the line-by-line run loop that interleaves the CPU with
+; the VIC-II, the two CIAs and the SID.
+;
+; ONE SOURCE for the board and the desktop: tools/port_desktop.py turns this
+; file into desktop/core/c64.pbi. Write it in the common subset (no ASM, every
+; comparison used as a value inside Bool(), no name that is also a CPU register:
+; parameters are never a, x, y, s, pc).
+;
+; The platform provides (declared here, defined by the board or desktop file):
+;   PlatformLine(viewY)    the address of the 384-byte line buffer for view line
+;                          viewY (colour index 0..15, +16 where foreground)
+;   PlatformLineDone(viewY)
+;   PlatformFrameDone()
+;   PlatformTick()         every 16 raster lines (about a millisecond): USB, input
+Declare.i PlatformLine(viewY.i)
+Declare PlatformLineDone(viewY.i)
+Declare PlatformFrameDone()
+Declare PlatformTick()
+
+#C64_PAL_HZ = 985248
+#C64_NTSC_HZ = 1022727
+
+Global Dim RomBasic.a(8192)
+Global Dim RomKernal.a(8192)
+Global Dim RomChar.a(4096)
+Global Dim ColorRam.a(1024)
+Global C64RomsLoaded.i
+; A cartridge: ROML ($8000) and ROMH ($A000 or $E000 in Ultimax) as addresses
+; of 8 KB images (0 = none), and the two lines the cartridge pulls.
+Global CartRomL.i, CartRomH.i, CartExrom.i = 1, CartGame.i = 1
+Global PortDdr.i, PortData.i, C64Mode.i, C64IoVisible.i, C64Ultimax.i
+Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_PAL_HZ
+Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
+Global C64FlatRam.i
+
+Declare VicReset()
+Declare.i VicRead(reg.i)
+Declare VicWrite(reg.i, v.i)
+Declare VicStartLine()
+Declare VicDrawLine()
+Declare VicEndLine()
+Declare VicBankChanged()
+Declare.i VicIrqActive()
+Global VicBad.i, VicSpriteSteal.i
+Declare CiaReset()
+Declare.i CiaRead(unit.i, reg.i, now.i)
+Declare CiaWrite(unit.i, reg.i, v.i, now.i)
+Declare CiaSyncAll(now.i)
+Declare CiaFrameTick()
+Global CiaNextEvent.i, Cia1Irq.i, Cia2Nmi.i
+Declare SidReset()
+Declare.i SidRead(reg.i)
+Declare SidWrite(reg.i, v.i)
+Declare SidRun(now.i)
+
+; Both interrupt lines from their sources. An IRQ that rises while the CPU
+; runs with I clear ends the run window, so it is taken at the next instruction.
+Procedure C64UpdateIrq()
+  Protected nmi.i
+  C64IrqLine = Bool(VicIrqActive() <> 0 Or Cia1Irq <> 0)
+  nmi = Bool(Cia2Nmi <> 0 Or C64Restore <> 0)
+  If nmi And C64NmiLevel = 0
+    C64NmiPending = 1
+    Budget = Budget - Left : Left = 0
+  EndIf
+  C64NmiLevel = nmi
+  If C64IrqLine And FI = 0
+    Budget = Budget - Left : Left = 0
+  EndIf
+EndProcedure
+
+; The PLA. Modes from LORAM/HIRAM/CHAREN (the port, inputs pulled high) and the
+; cartridge's EXROM/GAME. RdMap/WrMap hold biased bases: PeekA(map + address).
+Procedure C64MapUpdate()
+  Protected lr.i, hr.i, ch.i, page.i, ram.i, basic.i, kernal.i, chars.i, romh.i, roml.i, io.i
+  Protected rd8.i, rdA.i, rdD.i, rdE.i
+  If C64FlatRam
+    ProcedureReturn
+  EndIf
+  C64Mode = (PortData | (~PortDdr)) & 7
+  lr = C64Mode & 1 : hr = (C64Mode >> 1) & 1 : ch = (C64Mode >> 2) & 1
+  ram = @M(0)
+  basic = @RomBasic(0) - $A000
+  kernal = @RomKernal(0) - $E000
+  chars = @RomChar(0) - $D000
+  C64Ultimax = Bool(CartGame = 0 And CartExrom <> 0)
+  io = 0
+  rd8 = ram : rdA = ram : rdD = ram : rdE = ram
+  C64IoVisible = 0
+  If C64Ultimax
+    ; $0000-$0FFF RAM, $8000 ROML, $D000 I/O, $E000 ROMH, the rest open (I/O path)
+    For page = $10 To $7F : RdMap(page) = 0 : WrMap(page) = 0 : Next
+    For page = $A0 To $CF : RdMap(page) = 0 : WrMap(page) = 0 : Next
+    For page = $80 To $9F
+      If CartRomL : RdMap(page) = CartRomL - $8000 : Else : RdMap(page) = 0 : EndIf
+      WrMap(page) = 0
+    Next
+    For page = $D0 To $DF : RdMap(page) = 0 : WrMap(page) = 0 : Next
+    C64IoVisible = 1
+    For page = $E0 To $FF
+      If CartRomH : RdMap(page) = CartRomH - $E000 : Else : RdMap(page) = 0 : EndIf
+      WrMap(page) = ram
+    Next
+    VicBankChanged()
+    ProcedureReturn
+  EndIf
+  For page = $10 To $7F : RdMap(page) = ram : WrMap(page) = ram : Next
+  For page = $C0 To $CF : RdMap(page) = ram : WrMap(page) = ram : Next
+  If hr : rdE = kernal : EndIf
+  If CartGame = 0
+    If hr
+      If CartRomH : rdA = CartRomH - $A000 : EndIf
+    EndIf
+  ElseIf lr And hr
+    rdA = basic
+  EndIf
+  If CartExrom = 0 And lr And hr And CartRomL
+    rd8 = CartRomL - $8000
+  EndIf
+  If lr Or hr
+    If ch
+      C64IoVisible = 1
+    ElseIf CartGame = 0 And CartExrom = 0 And hr = 0
+      rdD = ram
+    Else
+      rdD = chars
+    EndIf
+  EndIf
+  For page = $80 To $9F : RdMap(page) = rd8 : WrMap(page) = ram : Next
+  For page = $A0 To $BF : RdMap(page) = rdA : WrMap(page) = ram : Next
+  For page = $E0 To $FF : RdMap(page) = rdE : WrMap(page) = ram : Next
+  For page = $D0 To $DF
+    If C64IoVisible
+      RdMap(page) = 0 : WrMap(page) = 0
+    Else
+      RdMap(page) = rdD : WrMap(page) = ram
+    EndIf
+  Next
+EndProcedure
+
+; The 6510's own port at $00 (direction) and $01 (data). Bits 0-2 bank, 4 is
+; the cassette sense (pulled up: no button), 3 and 5 the cassette outputs.
+; Inputs: bits 0-2 and 4 are pulled up, bit 5 (the motor transistor) reads 0,
+; and bits 3, 6 and 7 keep the level they last drove (nothing pulls them).
+Global PortHeld.i = $C8
+Procedure C64PortWrite(addr.i, v.i)
+  If addr = 0
+    PortDdr = v & 255
+  Else
+    PortData = v & 255
+  EndIf
+  PortHeld = ((PortData & PortDdr) | (PortHeld & (~PortDdr))) & $C8
+  M(0) = PortDdr
+  M(1) = ((PortData & PortDdr) | (($17 | PortHeld) & (~PortDdr))) & 255
+  C64MapUpdate()
+EndProcedure
+
+Procedure.i C64IoRead(addr.i)
+  Protected page.i
+  page = (addr >> 8) & 255
+  If page = 0
+    ProcedureReturn M(addr)
+  EndIf
+  If page >= $D0 And page <= $DF And C64IoVisible
+    If page <= $D3 : ProcedureReturn VicRead(addr & $3F) : EndIf
+    If page <= $D7 : ProcedureReturn SidRead(addr & $1F) : EndIf
+    If page <= $DB : ProcedureReturn (ColorRam(addr & $3FF) & 15) | $F0 : EndIf
+    If page = $DC : ProcedureReturn CiaRead(0, addr & 15, CpuNow()) : EndIf
+    If page = $DD : ProcedureReturn CiaRead(1, addr & 15, CpuNow()) : EndIf
+    ProcedureReturn $FF
+  EndIf
+  ; open bus (Ultimax holes, an empty cartridge slot)
+  ProcedureReturn $FF
+EndProcedure
+
+Procedure C64IoWrite(addr.i, v.i)
+  Protected page.i
+  page = (addr >> 8) & 255
+  If page = 0
+    If addr < 2 : C64PortWrite(addr, v) : Else : M(addr) = v : EndIf
+    ProcedureReturn
+  EndIf
+  If page >= $D0 And page <= $DF And C64IoVisible
+    If page <= $D3 : VicWrite(addr & $3F, v) : ProcedureReturn : EndIf
+    If page <= $D7 : SidRun(CpuNow()) : SidWrite(addr & $1F, v) : ProcedureReturn : EndIf
+    If page <= $DB : ColorRam(addr & $3FF) = v & 15 : ProcedureReturn : EndIf
+    If page = $DC : CiaWrite(0, addr & 15, v, CpuNow()) : ProcedureReturn : EndIf
+    If page = $DD : CiaWrite(1, addr & 15, v, CpuNow()) : ProcedureReturn : EndIf
+    ProcedureReturn
+  EndIf
+  ; Ultimax: writes to the open areas reach nothing
+EndProcedure
+
+Procedure C64SetStandard(pal.i)
+  C64Pal = pal
+  If pal
+    C64CyclesPerLine = 63 : C64Lines = 312 : C64Hz = #C64_PAL_HZ
+  Else
+    C64CyclesPerLine = 65 : C64Lines = 263 : C64Hz = #C64_NTSC_HZ
+  EndIf
+EndProcedure
+
+Procedure C64Reset()
+  Protected i.i
+  For i = 0 To 255 : RdMap(i) = @M(0) : WrMap(i) = @M(0) : Next
+  WrMap(0) = 0
+  PortDdr = $2F : PortData = $37
+  C64PortWrite(0, $2F)
+  C64PortWrite(1, $37)
+  VicReset() : CiaReset() : SidReset()
+  C64NmiPending = 0 : C64NmiLevel = 0 : C64Restore = 0
+  C64UpdateIrq()
+  CpuReset()
+EndProcedure
+
+; Power on: RAM in the pattern the real machine shows ($00 / $FF in 64-byte runs).
+Procedure C64PowerOn()
+  Protected i.i
+  For i = 0 To 65535
+    If i & 64 : M(i) = $FF : Else : M(i) = 0 : EndIf
+  Next
+  For i = 0 To 1023 : ColorRam(i) = 0 : Next
+  C64Reset()
+EndProcedure
+
+; Run the CPU until the machine clock reaches t, taking interrupts between
+; windows and cutting a window at the next CIA event that can interrupt.
+Procedure C64RunTo(t.i)
+  Protected n.i, e.i
+  While t - C64Clock > 0
+    If C64NmiPending
+      C64NmiPending = 0
+      C64Clock = C64Clock + CpuInterrupt($FFFA)
+    ElseIf C64IrqLine And FI = 0
+      C64Clock = C64Clock + CpuInterrupt($FFFE)
+    EndIf
+    n = t - C64Clock
+    If n > 0
+      e = CiaNextEvent - C64Clock
+      If e < n
+        If e < 1 : e = 1 : EndIf
+        n = e
+      EndIf
+      C64Clock = C64Clock + CpuRun(n)
+    EndIf
+    If C64Clock - CiaNextEvent >= 0
+      CiaSyncAll(C64Clock)
+    EndIf
+  Wend
+EndProcedure
+
+; One raster line: the CPU up to the line's drawing point (cycle 14), the line
+; drawn, a badline's 40 stolen cycles, the rest of the line less the sprites' DMA.
+Procedure C64RunLine()
+  VicStartLine()
+  C64RunTo(C64LineStart + 14)
+  VicDrawLine()
+  If VicBad
+    If C64Clock - (C64LineStart + 14) < 0 : C64Clock = C64LineStart + 14 : EndIf
+    C64Clock = C64Clock + 40
+  EndIf
+  C64RunTo(C64LineStart + C64CyclesPerLine - VicSpriteSteal)
+  If C64Clock - (C64LineStart + C64CyclesPerLine - VicSpriteSteal) < 0
+    C64Clock = C64LineStart + C64CyclesPerLine - VicSpriteSteal
+  EndIf
+  C64Clock = C64Clock + VicSpriteSteal
+  VicEndLine()
+  SidRun(C64Clock)
+  C64LineStart = C64LineStart + C64CyclesPerLine
+EndProcedure
+
+Global VicLine.i
+Procedure C64RunFrame()
+  For VicLine = 0 To C64Lines - 1
+    C64RunLine()
+    If (VicLine & 15) = 15 : PlatformTick() : EndIf
+  Next
+  CiaFrameTick()
+  C64Frame = C64Frame + 1
+  PlatformFrameDone()
+EndProcedure

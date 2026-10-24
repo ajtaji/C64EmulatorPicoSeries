@@ -1,0 +1,40 @@
+; The C64's own flash region on the Pico W: $1F0000-$1FEFFF (60 KB; the board
+; table in C:\PMFBuild\board-leases\BOARDS.md gives the C64 0x101F0000, below
+; the speaker link key at $1FF000). Written by tools/c64_store.py through the
+; compiler's --storage-write; nothing in it is in git (the ROMs are copyrighted).
+;
+;   +0   "C64S", u16 count, u16 0
+;   +8   count entries of 24 bytes: type, 0, u16 0, u32 size, u32 offset (from +0), 12-byte name
+;   type 1 BASIC, 2 KERNAL, 3 CHARGEN, 4 PRG, 5 D64 (whole or sparse "D64S")
+#C64_STORE = $1F0000
+#C64_STORE_SIZE = $F000
+FlashRegion "c64_store", #C64_STORE, #C64_STORE_SIZE, "raw"
+Global StoreAddr.i, StoreSize.i, StoreNameAddr.i
+
+Procedure.i StoreValid()
+  Protected b.i
+  b = $10000000 + #C64_STORE
+  If PeekA(b) = 67 And PeekA(b + 1) = 54 And PeekA(b + 2) = 52 And PeekA(b + 3) = 83 : ProcedureReturn 1 : EndIf
+  ProcedureReturn 0
+EndProcedure
+Procedure.i StoreCount()
+  If StoreValid() = 0 : ProcedureReturn 0 : EndIf
+  ProcedureReturn PeekU($10000000 + #C64_STORE + 4)
+EndProcedure
+; The index-th entry (0 = the first) of a type: 1 and StoreAddr / StoreSize, or 0.
+Procedure.i StoreFind(kind.i, index.i)
+  Protected b.i, n.i, i.i, e.i, seen.i
+  b = $10000000 + #C64_STORE
+  n = StoreCount()
+  For i = 0 To n - 1
+    e = b + 8 + i * 24
+    If PeekA(e) = kind
+      If seen = index
+        StoreSize = PeekL(e + 4) : StoreAddr = b + PeekL(e + 8) : StoreNameAddr = e + 12
+        ProcedureReturn 1
+      EndIf
+      seen = seen + 1
+    EndIf
+  Next
+  ProcedureReturn 0
+EndProcedure

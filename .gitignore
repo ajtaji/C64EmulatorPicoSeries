@@ -16,3 +16,4 @@ private/
 *.stderr.log
 *.cycles.txt
 __pycache__/
+build/

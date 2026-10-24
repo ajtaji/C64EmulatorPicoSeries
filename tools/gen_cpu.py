@@ -1,6 +1,6 @@
 """Generate the 6510 core twice from one opcode table:
 
-  src/cpu6510.pico          PureMetal, for the Pico W / Pico 2 W
+  src/cpu6510.pmi           PureMetal, for the Pico W / Pico 2 W
   desktop/core/cpu6510.pbi  PureBasic (C back end), for the desktop program
 
 Every one of the 256 NMOS opcodes, the undocumented ones included, each with
@@ -535,7 +535,7 @@ def generate(lang):
 def main():
     (ROOT / 'src').mkdir(exist_ok=True)
     (ROOT / 'desktop' / 'core').mkdir(parents=True, exist_ok=True)
-    (ROOT / 'src' / 'cpu6510.pico').write_text(generate('pm'), newline='\n')
+    (ROOT / 'src' / 'cpu6510.pmi').write_text(generate('pm'), newline='\n')
     (ROOT / 'desktop' / 'core' / 'cpu6510.pbi').write_text(generate('pb'), newline='\n')
     # a mnemonic / mode / cycles table for the disassemblers and the tests
     rows = []

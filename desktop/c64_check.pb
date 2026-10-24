@@ -17,6 +17,8 @@ Procedure.i PlatformLine(viewY.i)
 EndProcedure
 Procedure PlatformLineDone(viewY.i)
 EndProcedure
+Procedure PlatformTick()
+EndProcedure
 Procedure PlatformFrameDone()
   FramesDone + 1
 EndProcedure
@@ -124,6 +126,8 @@ For i = 0 To CountProgramParameters() - 1
     Case "--type" : i + 1 : type$ = ProgramParameter(i)
     Case "--shot" : i + 1 : shot$ = ProgramParameter(i)
     Case "--ntsc" : C64SetStandard(0)
+    Case "--demo" : mode$ = "demo"
+
     Case "--one" : BenchOne = 1
   EndSelect
 Next
@@ -144,6 +148,26 @@ If mode$ = "bench"
   EndIf
   PrintN("BENCH tests=" + Str(BenchTests) + " failures=" + Str(BenchFailures) + " frames=" + Str(FramesDone) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions))
   If BenchFailures : End 1 : EndIf
+  End 0
+EndIf
+
+If mode$ = "demo"
+  *prg = LoadFile(GetPathPart(ProgramFilename()) + "..\tests\demo.prg", @size)
+  BenchRoms() : BenchMode = 0
+  C64PowerOn()
+  C64InjectPrg(*prg, size, 0)
+  PC = $C000
+  Define peak.i, k.i
+  t = ElapsedMilliseconds()
+  For i = 1 To frames
+    C64RunFrame()
+  Next
+  t = ElapsedMilliseconds() - t
+  For k = 0 To #SID_RING - 1
+    If Abs(SidPcm(k)) > peak : peak = Abs(SidPcm(k)) : EndIf
+  Next
+  PrintN("DEMO frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " raster_irqs_flag=" + Str(VicIrqFlags) + " sid_samples=" + Str(SidSamples) + " sid_peak=" + Str(peak))
+  If shot$ : SaveShot(shot$) : EndIf
   End 0
 EndIf
 

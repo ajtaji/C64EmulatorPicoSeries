@@ -6,4 +6,8 @@ XIncludeFile "RP2040/Lib/timer.pico"
 XIncludeFile "RP2040/Lib/uart.pico"
 XIncludeFile "RP2040/Lib/usb_serial.pico"
 XIncludeFile "RP2040/Lib/safety.pico"
-XIncludeFile "serial_out.pico"
+XIncludeFile "serial_out.pmi"
+; Core 1 runs Core1Main(). 1 = started.
+Procedure.i PlatformLaunchCore1()
+  ProcedureReturn multicore_launch()
+EndProcedure

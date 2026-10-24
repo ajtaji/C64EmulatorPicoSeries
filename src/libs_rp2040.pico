@@ -1,0 +1,15 @@
+; The board libraries the C64 uses (libraries do not include libraries).
+XIncludeFile "RP2040/Lib/bits.pico"
+XIncludeFile "RP2040/Lib/wiring.pico"
+XIncludeFile "RP2040/Lib/flashid.pico"
+XIncludeFile "RP2040/Lib/flash.pico"
+XIncludeFile "RP2040/Lib/spi.pico"
+XIncludeFile "RP2040/Lib/st7796.pico"
+CompilerIf #C64_AUDIO = 1
+  XIncludeFile "RP2040/Lib/cyw43_nvram.pico"
+  XIncludeFile "RP2040/Lib/cyw43.pico"
+  XIncludeFile "RP2040/Lib/cyw43_btfw.pico"
+  XIncludeFile "RP2040/Lib/bluetooth.pico"
+  XIncludeFile "Shared/Bluetooth/sbc.pmi"
+  XIncludeFile "Shared/Bluetooth/bt_audio.pmi"
+CompilerEndIf

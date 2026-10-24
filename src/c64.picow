@@ -1,0 +1,8 @@
+; The C64 for the Pico W with the LAFVIN ST7796 panel. Public build: no
+; speaker address, so no sound (a private wrapper adds it: see pico_audio.pico).
+#C64_AUDIO = 0
+EnableExplicit
+XIncludeFile "platform_rp2040.pico"
+XIncludeFile "libs_rp2040.pico"
+XIncludeFile "c64_app.pmi"
+C64Main()
