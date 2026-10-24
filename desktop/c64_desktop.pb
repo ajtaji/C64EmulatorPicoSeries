@@ -241,7 +241,7 @@ Procedure ReadControls()
     If JoystickButton(0, 1) Or JoystickButton(0, 2) : joy | 16 : EndIf
   EndIf
   If KbJoyPort = 2 : Joy2 = joy : Joy1 = 0 : Else : Joy1 = joy : Joy2 = 0 : EndIf
-  If KbRestoreHeld <> C64Restore : C64Restore = KbRestoreHeld : C64UpdateIrq() : EndIf
+  If KbRestoreHeld <> C64Restore : C64Restore = KbRestoreHeld : C64UpdateIrq(C64Clock) : EndIf
 EndProcedure
 
 Procedure RunOneFrame()

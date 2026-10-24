@@ -120,7 +120,8 @@ Procedure.i BenchStart(nameAdr.i, n.i)
   rec = BenchFile(nameAdr, n)
   If rec = 0 : ProcedureReturn 0 : EndIf
   BenchLoad(rec)
-  S = $FD : CpuSetStatus($04) : PC = $0801
+  ; as after SYS from BASIC: interrupts enabled
+  S = $FD : CpuSetStatus($00) : PC = $0801
   ProcedureReturn 1
 EndProcedure
 

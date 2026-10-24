@@ -1,0 +1,11 @@
+> RP2040 ASSEMBLER: 81828 bytes of code run from SRAM at $20000000-$20013FA3, copied from flash at boot; 110836 bytes of SRAM left free, stacks and reserved windows excluded.
+ROM_TOTAL_RP2040|195180|2097152
+image ends at 0x1002FB00
+Get-ChildItem : Cannot find path 'C:\PMFBuild\board-leases\queue\COM7' because it does not exist.
+At C:\PMFBuild\board-leases\lease.ps1:34 char:23
++       foreach ($t in (Get-ChildItem $qdir -File | Sort-Object Name))  ...
++                       ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PMFBuild\board-leases\queue\COM7:String) [Get-ChildItem], ItemNotFou 
+   ndException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 

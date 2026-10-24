@@ -336,7 +336,7 @@ def body(code):
               '    Base = PC',
               '    PC = (PC + ((Value ! 128) - 128)) & $FFFF',
               '    Left = Left - 1',
-              '    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf',
+              '    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf',
               '  EndIf']
     elif mn == 'BRK':
         L += ['  PC = (PC + 1) & $FFFF', '  CpuPush(PC >> 8)', '  CpuPush(PC & 255)',
@@ -357,15 +357,15 @@ def body(code):
     elif mn == 'PHP':
         L += ['  Tmp = CpuStatus() | $10', '  CpuPush(Tmp)']
     elif mn == 'PLP':
-        L += ['  CpuPop(Tmp)', '  CpuSetStatus(Tmp)'] + stop_if_irq()
+        L += ['  CpuIOld = FI : CpuIAt = CpuInstructions + 1', '  CpuPop(Tmp)', '  CpuSetStatus(Tmp)'] + stop_if_irq()
     elif mn == 'PHA':
         L += ['  CpuPush(A)']
     elif mn == 'PLA':
         L += ['  CpuPop(A)'] + NZ('A')
     elif mn == 'CLC': L += ['  FC = 0']
     elif mn == 'SEC': L += ['  FC = $100']
-    elif mn == 'CLI': L += ['  FI = 0'] + stop_if_irq()
-    elif mn == 'SEI': L += ['  FI = 1']
+    elif mn == 'CLI': L += ['  CpuIOld = FI : CpuIAt = CpuInstructions + 1', '  FI = 0'] + stop_if_irq()
+    elif mn == 'SEI': L += ['  CpuIOld = FI : CpuIAt = CpuInstructions + 1', '  FI = 1']
     elif mn == 'CLV': L += ['  FV = 0']
     elif mn == 'CLD': L += ['  FD = 0']
     elif mn == 'SED': L += ['  FD = 1']
@@ -411,6 +411,10 @@ Global Res.i, Left.i, Budget.i, Ready.i, Stopped.i, BadOpcode.i
 Global Ea.i, Value.i, Lo.i, Hi.i, Tmp.i, Base.i, Pg.i
 Global AccessPhase.i, CpuInstructions.i, InitIndex.i
 Global C64Clock.i, C64IrqLine.i
+; The interrupt check of the instruction just run: CLI, SEI and PLP change the I flag after the
+; check (CpuIOld is what it saw, CpuIAt the instruction count it applies to); a taken branch that
+; stays in its page polls a cycle earlier (CpuBr3At).
+Global CpuIOld.i, CpuIAt.i, CpuBr3At.i
 {RESERVE}
 Declare.i C64IoRead(addr.i)
 Declare C64IoWrite(addr.i, v.i)
@@ -459,13 +463,10 @@ Procedure CpuReset()
   CpuSetStatus($24)
   Stopped = 0 : BadOpcode = 0
 EndProcedure
-; The machine calls this BETWEEN run windows: NMI ($FFFA), or IRQ ($FFFE) when
-; I is clear. Returns the cycles it took (7), or 0 when not taken.
-Procedure.i CpuInterrupt(vector.i)
+; Take an interrupt now (the machine has decided it is due): push PC and P, set I,
+; jump through the vector. Returns the cycles it took (7), or 0 when the CPU is stopped.
+Procedure.i CpuInterruptNow(vector.i)
   If Stopped
-    ProcedureReturn 0
-  EndIf
-  If vector = $FFFE And FI
     ProcedureReturn 0
   EndIf
   CpuPush(PC >> 8)
@@ -475,6 +476,13 @@ Procedure.i CpuInterrupt(vector.i)
   FI = 1
   PC = CpuReadVector(vector)
   ProcedureReturn 7
+EndProcedure
+; NMI ($FFFA), or IRQ ($FFFE) when I is clear: 7, or 0 when not taken.
+Procedure.i CpuInterrupt(vector.i)
+  If vector = $FFFE And FI
+    ProcedureReturn 0
+  EndIf
+  ProcedureReturn CpuInterruptNow(vector)
 EndProcedure
 
 {PROC}.i CpuRun(n.i)

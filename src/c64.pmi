@@ -32,7 +32,7 @@ Global CartRomL.i, CartRomH.i, CartExrom.i = 1, CartGame.i = 1
 Global PortDdr.i, PortData.i, C64Mode.i, C64IoVisible.i, C64Ultimax.i
 Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_PAL_HZ
 Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
-Global C64FlatRam.i
+Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i
 
 Declare VicReset()
 Declare.i VicRead(reg.i)
@@ -54,20 +54,23 @@ Declare.i SidRead(reg.i)
 Declare SidWrite(reg.i, v.i)
 Declare SidRun(now.i)
 
-; Both interrupt lines from their sources. An IRQ that rises while the CPU
-; runs with I clear ends the run window, so it is taken at the next instruction.
-Procedure C64UpdateIrq()
-  Protected nmi.i
-  C64IrqLine = Bool(VicIrqActive() <> 0 Or Cia1Irq <> 0)
+; Both interrupt lines from their sources; at = the clock the change happened. A line that
+; rises while the CPU runs ends the run window; C64RunTo then takes the interrupt when the
+; 6510 would (see there).
+Procedure C64UpdateIrq(at.i)
+  Protected nmi.i, irq.i
+  irq = Bool(VicIrqActive() <> 0 Or Cia1Irq <> 0)
+  If irq And C64IrqLine = 0
+    C64IrqAt = at
+    If FI = 0 : Budget = Budget - Left : Left = 0 : EndIf
+  EndIf
+  C64IrqLine = irq
   nmi = Bool(Cia2Nmi <> 0 Or C64Restore <> 0)
   If nmi And C64NmiLevel = 0
-    C64NmiPending = 1
+    C64NmiPending = 1 : C64NmiAt = at
     Budget = Budget - Left : Left = 0
   EndIf
   C64NmiLevel = nmi
-  If C64IrqLine And FI = 0
-    Budget = Budget - Left : Left = 0
-  EndIf
 EndProcedure
 
 ; The PLA. Modes from LORAM/HIRAM/CHAREN (the port, inputs pulled high) and the
@@ -209,8 +212,8 @@ Procedure C64Reset()
   C64PortWrite(0, $2F)
   C64PortWrite(1, $37)
   VicReset() : CiaReset() : SidReset()
-  C64NmiPending = 0 : C64NmiLevel = 0 : C64Restore = 0
-  C64UpdateIrq()
+  C64NmiPending = 0 : C64NmiLevel = 0 : C64Restore = 0 : C64IrqLine = 0
+  C64UpdateIrq(C64Clock)
   CpuReset()
 EndProcedure
 
@@ -224,16 +227,45 @@ Procedure C64PowerOn()
   C64Reset()
 EndProcedure
 
+; The 6510 takes an interrupt after an instruction only when it was asserted at
+; least 2 cycles before that instruction ended (3 for a taken branch that stays in
+; its page); otherwise it runs the next instruction first. CLI, SEI and PLP change
+; I after the check, so the check sees the I flag from before them.
+Procedure.i C64IrqDue(at.i)
+  Protected need.i
+  need = at + 2
+  If CpuBr3At = CpuInstructions : need = need + 1 : EndIf
+  ProcedureReturn Bool(C64Clock - need >= 0)
+EndProcedure
+
 ; Run the CPU until the machine clock reaches t, taking interrupts between
-; windows and cutting a window at the next CIA event that can interrupt.
+; instructions as above and cutting a window at the next CIA event that can interrupt.
 Procedure C64RunTo(t.i)
-  Protected n.i, e.i
+  Protected n.i, e.i, polled.i
   While t - C64Clock > 0
     If C64NmiPending
-      C64NmiPending = 0
-      C64Clock = C64Clock + CpuInterrupt($FFFA)
-    ElseIf C64IrqLine And FI = 0
-      C64Clock = C64Clock + CpuInterrupt($FFFE)
+      If C64IrqDue(C64NmiAt)
+        C64NmiPending = 0
+        C64Clock = C64Clock + CpuInterruptNow($FFFA)
+      Else
+        C64Clock = C64Clock + CpuRun(1)
+        Continue
+      EndIf
+    ElseIf C64IrqLine
+      polled = FI
+      If CpuIAt = CpuInstructions : polled = CpuIOld : EndIf
+      If polled = 0
+        If C64IrqDue(C64IrqAt)
+          C64Clock = C64Clock + CpuInterruptNow($FFFE)
+        Else
+          C64Clock = C64Clock + CpuRun(1)
+          Continue
+        EndIf
+      ElseIf FI = 0
+        ; I was cleared by the instruction just run: one more before the interrupt
+        C64Clock = C64Clock + CpuRun(1)
+        Continue
+      EndIf
     EndIf
     n = t - C64Clock
     If n > 0

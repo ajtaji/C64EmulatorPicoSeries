@@ -108,17 +108,17 @@ Procedure VicWrite(reg.i, v.i)
     VicCompare = ((VicReg($11) & $80) << 1) | VicReg($12)
     If VicCompare <> old : VicCompareCheck() : EndIf
     If VicRaster = $30 And (VicReg($11) & $10) : VicDenSeen = 1 : EndIf
-    C64UpdateIrq()
+    C64UpdateIrq(CpuNow())
     ProcedureReturn
   EndIf
   If reg = $19
     VicIrqFlags = VicIrqFlags & (~v) & 15
-    C64UpdateIrq()
+    C64UpdateIrq(CpuNow())
     ProcedureReturn
   EndIf
   If reg = $1A
     VicIrqMask = v & 15
-    C64UpdateIrq()
+    C64UpdateIrq(CpuNow())
     ProcedureReturn
   EndIf
   If reg = $1E Or reg = $1F : ProcedureReturn : EndIf
@@ -147,7 +147,8 @@ Procedure VicStartLine()
   Next
   VicSpriteSteal = 0
   If count : VicSpriteSteal = count * 2 + 3 : EndIf
-  C64UpdateIrq()
+  ; the raster interrupt comes at cycle 0 of the line (cycle 1 on line 0)
+  If VicRaster = 0 : C64UpdateIrq(C64LineStart + 1) : Else : C64UpdateIrq(C64LineStart) : EndIf
 EndProcedure
 
 ; Eight pixels of one cell. g is the graphics byte; mode as $D011/$D016 select.
@@ -285,7 +286,7 @@ Procedure VicSprites()
     If VicSprBg = 0 : VicIrqFlags = VicIrqFlags | 2 : EndIf
     VicSprBg = VicSprBg | sb
   EndIf
-  If ss Or sb : C64UpdateIrq() : EndIf
+  If ss Or sb : C64UpdateIrq(C64Clock) : EndIf
 EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and

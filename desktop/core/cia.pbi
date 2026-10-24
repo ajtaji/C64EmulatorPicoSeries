@@ -32,7 +32,7 @@ Global Dim CiaSdr.i(2)
 Global Dim KeyRows.i(8)
 Global Joy1.i, Joy2.i
 #CIA_START_DELAY = 2
-Global CiaTmpCount.i, CiaTmpStop.i, CiaTmpLast.i, CiaIrqDelay.i = 2, CiaIrDelay.i = 1
+Global CiaTmpCount.i, CiaTmpStop.i, CiaTmpLast.i, CiaIrqDelay.i = 1, CiaIrDelay.i = 1
 ; the clock of each timer's last underflow (the IR bit and the IRQ line follow it a cycle later)
 Global Dim CiaTaUf.i(2)
 Global Dim CiaTbUf.i(2)
@@ -50,10 +50,26 @@ Procedure.i CiaIrReady(unit.i, now.i)
   ProcedureReturn 0
 EndProcedure
 Global CiaLinesAt.i
+; When a unit's line rose: a timer's interrupt bit comes up a cycle after its
+; underflow, even when the machine looks at it later; anything else, now.
+Procedure.i CiaAssertTime(unit.i)
+  Protected f.i, t.i
+  f = CiaIcr(unit) & CiaMask(unit) & $1F
+  t = CiaLinesAt
+  If (f & 1) And CiaTaUf(unit) + CiaIrDelay - t < 0 : t = CiaTaUf(unit) + CiaIrDelay : EndIf
+  If (f & 2) And CiaTbUf(unit) + CiaIrDelay - t < 0 : t = CiaTbUf(unit) + CiaIrDelay : EndIf
+  ProcedureReturn t
+EndProcedure
 Procedure CiaUpdateLines()
-  Cia1Irq = CiaIrReady(0, CiaLinesAt)
-  Cia2Nmi = CiaIrReady(1, CiaLinesAt)
-  C64UpdateIrq()
+  Protected rise.i, at.i
+  at = CiaLinesAt
+  rise = CiaIrReady(0, CiaLinesAt)
+  If rise And Cia1Irq = 0 : at = CiaAssertTime(0) : EndIf
+  Cia1Irq = rise
+  rise = CiaIrReady(1, CiaLinesAt)
+  If rise And Cia2Nmi = 0 : at = CiaAssertTime(1) : EndIf
+  Cia2Nmi = rise
+  C64UpdateIrq(at)
 EndProcedure
 
 ; Advance a counter by n cycles; returns the underflows, leaving the new value
@@ -307,6 +323,8 @@ Procedure.i CiaRead(unit.i, reg.i, now.i)
   If reg = 13
     v = CiaIcr(unit)
     If CiaIrReady(unit, now) : v = v | $80 : EndIf
+    ; a line already up registers (an NMI edge) before the read clears it
+    CiaUpdateLines()
     CiaIcr(unit) = 0
     CiaUpdateLines()
     CiaPlan(now)

@@ -14,6 +14,10 @@ Global Res.i, Left.i, Budget.i, Ready.i, Stopped.i, BadOpcode.i
 Global Ea.i, Value.i, Lo.i, Hi.i, Tmp.i, Base.i, Pg.i
 Global AccessPhase.i, CpuInstructions.i, InitIndex.i
 Global C64Clock.i, C64IrqLine.i
+; The interrupt check of the instruction just run: CLI, SEI and PLP change the I flag after the
+; check (CpuIOld is what it saw, CpuIAt the instruction count it applies to); a taken branch that
+; stays in its page polls a cycle earlier (CpuBr3At).
+Global CpuIOld.i, CpuIAt.i, CpuBr3At.i
 
 Declare.i C64IoRead(addr.i)
 Declare C64IoWrite(addr.i, v.i)
@@ -62,13 +66,10 @@ Procedure CpuReset()
   CpuSetStatus($24)
   Stopped = 0 : BadOpcode = 0
 EndProcedure
-; The machine calls this BETWEEN run windows: NMI ($FFFA), or IRQ ($FFFE) when
-; I is clear. Returns the cycles it took (7), or 0 when not taken.
-Procedure.i CpuInterrupt(vector.i)
+; Take an interrupt now (the machine has decided it is due): push PC and P, set I,
+; jump through the vector. Returns the cycles it took (7), or 0 when the CPU is stopped.
+Procedure.i CpuInterruptNow(vector.i)
   If Stopped
-    ProcedureReturn 0
-  EndIf
-  If vector = $FFFE And FI
     ProcedureReturn 0
   EndIf
   CpuPush(PC >> 8)
@@ -78,6 +79,13 @@ Procedure.i CpuInterrupt(vector.i)
   FI = 1
   PC = CpuReadVector(vector)
   ProcedureReturn 7
+EndProcedure
+; NMI ($FFFA), or IRQ ($FFFE) when I is clear: 7, or 0 when not taken.
+Procedure.i CpuInterrupt(vector.i)
+  If vector = $FFFE And FI
+    ProcedureReturn 0
+  EndIf
+  ProcedureReturn CpuInterruptNow(vector)
 EndProcedure
 
 Global CpuQuit.i
@@ -327,7 +335,7 @@ Procedure Op10() ; $10 BPL rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -711,6 +719,7 @@ Procedure Op27() ; $27 RLA zp
   CpuInstructions = CpuInstructions + 1
 EndProcedure
 Procedure Op28() ; $28 PLP imp
+  CpuIOld = FI : CpuIAt = CpuInstructions + 1
   CpuPop(Tmp)
   CpuSetStatus(Tmp)
   If FI = 0 And C64IrqLine <> 0 : Budget = Budget - Left : Left = 0 : EndIf
@@ -842,7 +851,7 @@ Procedure Op30() ; $30 BMI rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -1340,7 +1349,7 @@ Procedure Op50() ; $50 BVC rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -1453,6 +1462,7 @@ Procedure Op57() ; $57 SRE zpx
   CpuInstructions = CpuInstructions + 1
 EndProcedure
 Procedure Op58() ; $58 CLI imp
+  CpuIOld = FI : CpuIAt = CpuInstructions + 1
   FI = 0
   If FI = 0 And C64IrqLine <> 0 : Budget = Budget - Left : Left = 0 : EndIf
   Left = Left - 2
@@ -1969,7 +1979,7 @@ Procedure Op70() ; $70 BVS rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -2148,6 +2158,7 @@ Procedure Op77() ; $77 RRA zpx
   CpuInstructions = CpuInstructions + 1
 EndProcedure
 Procedure Op78() ; $78 SEI imp
+  CpuIOld = FI : CpuIAt = CpuInstructions + 1
   FI = 1
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -2516,7 +2527,7 @@ Procedure Op90() ; $90 BCC rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -2910,7 +2921,7 @@ Procedure OpB0() ; $B0 BCS rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -3373,7 +3384,7 @@ Procedure OpD0() ; $D0 BNE rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
@@ -3956,7 +3967,7 @@ Procedure OpF0() ; $F0 BEQ rel
     Base = PC
     PC = (PC + ((Value ! 128) - 128)) & $FFFF
     Left = Left - 1
-    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : EndIf
+    If (Base & $FF00) <> (PC & $FF00) : Left = Left - 1 : Else : CpuBr3At = CpuInstructions + 1 : EndIf
   EndIf
   Left = Left - 2
   CpuInstructions = CpuInstructions + 1
