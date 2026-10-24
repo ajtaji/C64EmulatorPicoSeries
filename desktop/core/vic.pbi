@@ -304,15 +304,30 @@ EndProcedure
 ; The 40 cells of a display line (or the idle pattern), every mode, as two 32-bit words a
 ; cell: stored as words when there is no X scroll (the line is word-aligned), else as bytes.
 ; Standard text, the common screen, has a loop of its own.
+; the bytes a shifted line pushed past its last cell, into the word after it
+Procedure VicCellsTail(ad.i, sh.i, cy.i)
+  If sh
+    PokeL(ad, (PeekL(ad) & ~((1 << sh) - 1)) | cy)
+  EndIf
+EndProcedure
+
 Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
   Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w0.i, w1.i, bg0.i, k.i, mc.i, chp.i
-  Protected p0.i, p1.i, p2.i, p3.i
+  Protected p0.i, p1.i, p2.i, p3.i, sh.i, rsh.i, cy.i
   bg0 = VicReg($21) & 15
   If mode >= 5 : bg0 = 0 : EndIf
-  gp = VicOut + 32 + xs
+  ; the cells are stored as aligned words: an X scroll of xs pixels starts a word later for 4-7,
+  ; shifts each word left by the rest (xs & 3) bytes and carries the bytes pushed out into the next
+  ; word (the xs bytes before the first cell and those after the last keep what is there)
+  gp = VicOut + 32 + (xs & 4)
+  sh = (xs & 3) << 3
+  If sh
+    rsh = 32 - sh
+    cy = PeekL(gp) & ((1 << sh) - 1)
+  EndIf
   ; the line's character data: one 2 KB set inside one 4 KB block of the VIC's bank
   chp = VicMap((cb >> 12) & 3) + cb + VicRc
-  If mode = 0 And VicDisplay And xs = 0
+  If mode = 0 And VicDisplay And sh = 0
     b = bg0 * $01010101
     For i = 0 To 39
       g = PeekA(chp + (VmLine(i) << 3))
@@ -327,6 +342,26 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
       EndIf
       gp = gp + 8
     Next
+    VicCellsTail(gp, sh, cy)
+    ProcedureReturn
+  EndIf
+  If mode = 0 And VicDisplay
+    b = bg0 * $01010101
+    For i = 0 To 39
+      g = PeekA(chp + (VmLine(i) << 3))
+      If g
+        f = (ColLine(i) | 16) * $01010101
+        m = Mask4(g >> 4)
+        w0 = (m & f) | ((~m) & b)
+        m = Mask4(g & 15)
+        w1 = (m & f) | ((~m) & b)
+      Else
+        w0 = b : w1 = b
+      EndIf
+      PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
+      gp = gp + 8
+    Next
+    VicCellsTail(gp, sh, cy)
     ProcedureReturn
   EndIf
   ; multicolour text (and its hires cells) and multicolour bitmap: the colours that are the
@@ -364,14 +399,14 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
         w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
         w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
       EndIf
-      If xs = 0
+      If sh = 0
         PokeL(gp, w0) : PokeL(gp + 4, w1)
       Else
-        PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
-        PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+        PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
       EndIf
       gp = gp + 8
     Next
+    VicCellsTail(gp, sh, cy)
     ProcedureReturn
   EndIf
   ; the invalid modes (ECM with MCM or BMM) are black: a cell is only its foreground mask
@@ -390,14 +425,14 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
       Else
         w0 = Mask4((g >> 4) & 15) & $10101010 : w1 = Mask4(g & 15) & $10101010
       EndIf
-      If xs = 0
+      If sh = 0
         PokeL(gp, w0) : PokeL(gp + 4, w1)
       Else
-        PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
-        PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+        PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
       EndIf
       gp = gp + 8
     Next
+    VicCellsTail(gp, sh, cy)
     ProcedureReturn
   EndIf
   If VicDisplay = 0
@@ -456,24 +491,24 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
     If VicDisplay = 0
       ; idle: every cell of the line is the same pattern
       For k = 0 To 39
-        If xs = 0
+        If sh = 0
           PokeL(gp, w0) : PokeL(gp + 4, w1)
         Else
-          PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
-          PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+          PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
         EndIf
         gp = gp + 8
       Next
+      VicCellsTail(gp, sh, cy)
       ProcedureReturn
     EndIf
-    If xs = 0
+    If sh = 0
       PokeL(gp, w0) : PokeL(gp + 4, w1)
     Else
-      PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
-      PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+      PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
     EndIf
     gp = gp + 8
   Next
+  VicCellsTail(gp, sh, cy)
 EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and

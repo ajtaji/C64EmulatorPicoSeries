@@ -230,7 +230,9 @@ If mode$ = "boot"
     C64TypeText(*tx)
   EndIf
   t = ElapsedMilliseconds()
-  Define jn.i, jf.i, jm.i, jk.i
+  Define jn.i, jf.i, jm.i, jk.i, bwav.i, bcur.i
+  If wav$ : bwav = CreateFile(#PB_Any, wav$) : WriteData(bwav, ?WavHead, 44) : EndIf
+  bcur = SidSamples
   For i = 1 To frames
     Joy2 = 0
     For jk = 1 To CountString(joy$, " ")
@@ -239,18 +241,21 @@ If mode$ = "boot"
     Next
     C64LoaderFrame()
     C64RunFrame()
+    If bwav
+      While bcur < SidSamples : WriteWord(bwav, SidPcm(bcur & (#SID_RING - 1))) : bcur + 1 : Wend
+    EndIf
   Next
+  If bwav
+    FileSeek(bwav, 40) : WriteLong(bwav, bcur * 2) : FileSeek(bwav, 4) : WriteLong(bwav, 36 + bcur * 2) : CloseFile(bwav)
+  EndIf
   t = ElapsedMilliseconds() - t
   Print(ScreenText())
-  Define zz.i, zs$
-  For zz = $73 To $8A : zs$ + RSet(Hex(M(zz)), 2, "0") + " " : Next
-  PrintN("ZP73 " + zs$)
   PrintN("PERF cpu_us=" + Str(PerfCpuUs) + " vic_us=" + Str(PerfVicUs) + " sid_us=" + Str(PerfSidUs))
   PrintN("BOOT frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " loads=" + Str(LoadCount) + " sid_samples=" + Str(SidSamples))
   If shot$ : SaveShot(shot$) : EndIf
   End 0
 EndIf
-PrintN("usage: c64_check --bench [test] | --boot <romdir> [--frames N] [--prg f] [--d64 f] [--type text] [--shot f.bmp]")
+PrintN("usage: c64_check --bench [test] | --boot <romdir> [--frames N] [--prg f] [--d64 f] [--type text] [--shot f.bmp] [--wav f.wav] [--joy frame:mask]")
 End 2
 
 DataSection

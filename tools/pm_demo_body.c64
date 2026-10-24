@@ -1,0 +1,149 @@
+; PureMetal C64 demo: music and graphics, written in PureMetal and compiled by PureMetal Forge for the
+; "Commodore 64 (PAL)" board. LOAD"C64DEMO",8,1 and RUN (the .prg starts with 10 SYS 2061).
+;
+;   - raster bars: 16 raster interrupts a frame, one every 8 lines, each setting the background colour
+;   - a smooth scroller on the bottom row: $D016's X scroll set by a raster interrupt just above it
+;   - a ball sprite bouncing under gravity, its colour cycling
+;   - three SID voices: a pulse bass line, a triangle lead and a sawtooth arpeggio (the chord
+;     played one note a frame), 4 bars of Am F C G
+;
+; The tables (screen codes, frequencies, the song, the sprite) are written by tools/make_pm_demo.py.
+
+Global frame.a, st.a, phase.a, scroll.a
+Global stepT.a, stepN.a, arpN.a
+Global msgPos.w
+
+#BAR_TOP = 98
+#SCROLL_ROW = 24
+
+Procedure PlayMusic()
+  Protected n.a, f.a
+  ; the arpeggio: the bar's chord, one note a frame
+  arpN = arpN + 1
+  If arpN > 2 : arpN = 0 : EndIf
+  If arpN = 0
+    n = PeekA(?arp0 + (stepN >> 3))
+  ElseIf arpN = 1
+    n = PeekA(?arp1 + (stepN >> 3))
+  Else
+    n = PeekA(?arp2 + (stepN >> 3))
+  EndIf
+  PokeA($D40E, PeekA(?freqlo + n)) : PokeA($D40F, PeekA(?freqhi + n))
+  stepT = stepT + 1
+  If stepT < 7 : ProcedureReturn : EndIf
+  stepT = 0
+  stepN = (stepN + 1) & 31
+  n = PeekA(?bass + stepN)
+  If n
+    PokeA($D404, $40)                        ; voice 1 gate off, then on: a new note
+    PokeA($D400, PeekA(?freqlo + n)) : PokeA($D401, PeekA(?freqhi + n))
+    PokeA($D404, $41)
+  EndIf
+  n = PeekA(?lead + stepN)
+  If n
+    PokeA($D40B, $10)
+    PokeA($D407, PeekA(?freqlo + n)) : PokeA($D408, PeekA(?freqhi + n))
+    PokeA($D40B, $11)
+  EndIf
+  If (stepN & 7) = 0                         ; the arpeggio's voice restarts with each chord
+    PokeA($D412, $20) : PokeA($D412, $21)
+  EndIf
+EndProcedure
+
+ProcedureInterrupt IRQ()
+  PokeA($D019, $01)                          ; VIC-II: answered
+  If st < 16
+    PokeA($D021, PeekA(?bars + ((st + phase) & 15)))
+    st = st + 1
+    If st < 16
+      PokeA($D012, #BAR_TOP + st * 8)
+    Else
+      PokeA($D012, #BAR_TOP + 128)
+    EndIf
+  ElseIf st = 16
+    PokeA($D021, 0)                          ; the bars end
+    st = 17
+    PokeA($D012, 240)
+  ElseIf st = 17
+    PokeA($D016, scroll)                     ; the scroller's row: 38 columns, X scroll
+    st = 18
+    PokeA($D012, 251)
+  Else
+    PokeA($D016, $08)                        ; back to 40 columns, no scroll
+    PlayMusic()
+    frame = frame + 1
+    st = 0
+    PokeA($D012, #BAR_TOP)
+  EndIf
+EndProcedure
+
+Procedure Main()
+  Protected i.w, x.w, y.w, vy.w, dx.w, seen.a, cia.a, c.a, col.a
+  PokeA($D020, 0) : PokeA($D021, 0)
+  For i = 0 To 999                           ; a clear screen
+    PokeA($0400 + i, 32) : PokeA($D800 + i, 1)
+  Next
+  For i = 0 To 39
+    PokeA($0400 + 40 + i, PeekA(?title + i)) : PokeA($D800 + 40 + i, 7)
+    PokeA($0400 + 120 + i, PeekA(?sub + i)) : PokeA($D800 + 120 + i, 15)
+    PokeA($D800 + #SCROLL_ROW * 40 + i, PeekA(?grad + (i & 7)))
+  Next
+  For i = 0 To 62                            ; the ball, in block 13 ($0340)
+    PokeA($0340 + i, PeekA(?ball + i))
+  Next
+  PokeA($07F8, 13)
+  PokeA($D015, $01) : PokeA($D027, 1)
+  x = 40 : y = 60 * 4 : vy = 0 : dx = 1
+
+  ; SID: volume 15, three envelopes
+  For i = 0 To 24 : PokeA($D400 + i, 0) : Next
+  PokeA($D405, $09) : PokeA($D406, $00)      ; bass: fast attack, short decay, no sustain
+  PokeA($D402, 0) : PokeA($D403, 8)          ; a square pulse
+  PokeA($D40C, $0A) : PokeA($D40D, $A6)      ; lead: decay to a held level, a long release
+  PokeA($D413, $00) : PokeA($D414, $F0)      ; arpeggio: held
+  PokeA($D418, 15)
+
+  PokeA($DC0D, $7F)                          ; CIA 1: no timer interrupts
+  cia = PeekA($DC0D)
+  PokeA($D011, PeekA($D011) & $7F)
+  st = 0 : PokeA($D012, #BAR_TOP)
+  PokeA($D01A, $01)
+  scroll = 7 : msgPos = 0
+  EnableInterrupts
+  Repeat
+    While frame = seen : Wend
+    seen = frame
+    ; the scroller: a pixel a frame, a character every 8
+    If scroll = 0
+      scroll = 7
+      For i = 0 To 38
+        PokeA($0400 + #SCROLL_ROW * 40 + i, PeekA($0400 + #SCROLL_ROW * 40 + 1 + i))
+      Next
+      c = PeekA(?msg + msgPos)
+      If c = 255 : msgPos = 0 : c = PeekA(?msg) : EndIf
+      PokeA($0400 + #SCROLL_ROW * 40 + 39, c)
+      msgPos = msgPos + 1
+    Else
+      scroll = scroll - 1
+    EndIf
+    ; the bars move down a colour every two frames
+    If (frame & 1) = 0 : phase = phase - 1 : EndIf
+    ; the ball: across and back, falling and bouncing (y in quarter pixels)
+    x = x + dx
+    If x > 320 : dx = -1 : EndIf
+    If x < 24 : dx = 1 : EndIf
+    vy = vy + 1
+    y = y + vy
+    If y > 210 * 4 : y = 210 * 4 : vy = -vy : EndIf
+    PokeA($D000, x & 255)
+    If x > 255 : PokeA($D010, 1) : Else : PokeA($D010, 0) : EndIf
+    PokeA($D001, y >> 2)
+    If (frame & 7) = 0
+      col = (col + 1) & 15
+      If col = 0 : col = 1 : EndIf
+      PokeA($D027, col)
+    EndIf
+  ForEver
+EndProcedure
+
+Main()
