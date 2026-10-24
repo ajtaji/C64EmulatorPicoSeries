@@ -1,0 +1,3 @@
+# Boot BASIC from the store and read the status lines (frame time split).
+expect C64 mode=basic 20
+wait 12
