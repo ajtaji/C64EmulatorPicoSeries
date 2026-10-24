@@ -7,6 +7,10 @@
 ; The trap: the byte at $F4A5 (STA $93, the first instruction of the KERNAL's
 ; LOAD) becomes $02, which the CPU hands to C64Trap. Declining runs STA $93.
 #TRAP_LOAD = $F4A5
+; A KERNAL without Commodore's code at $F4A5 (a replacement KERNAL) is trapped at its public
+; jump-table entry $FFD5 instead (JMP LOAD), which every C64 KERNAL has.
+#TRAP_LOAD_TABLE = $FFD5
+Global LoadTrapAt.i, LoadTableTarget.i
 Global D64Image.i, D64Size.i, D64Inserted.i
 Global LoadTrapOn.i, LoadCount.i, LoadLastEnd.i, LoadError.i
 Global PrgPending.i, PrgPendingSize.i, PrgAutoRun.i, PrgFrame.i
@@ -24,10 +28,14 @@ Procedure C64SetRoms(basic.i, kernal.i, chars.i)
   For i = 0 To 8191 : RomBasic(i) = PeekA(basic + i) : RomKernal(i) = PeekA(kernal + i) : Next
   For i = 0 To 4095 : RomChar(i) = PeekA(chars + i) : Next
   C64RomsLoaded = 1
-  LoadTrapOn = 0
+  LoadTrapOn = 0 : LoadTrapAt = 0
   If RomKernal(#TRAP_LOAD - $E000) = $85 And RomKernal(#TRAP_LOAD - $E000 + 1) = $93
     RomKernal(#TRAP_LOAD - $E000) = $02
-    LoadTrapOn = 1
+    LoadTrapOn = 1 : LoadTrapAt = #TRAP_LOAD
+  ElseIf RomKernal(#TRAP_LOAD_TABLE - $E000) = $4C
+    LoadTableTarget = RomKernal(#TRAP_LOAD_TABLE - $E000 + 1) | (RomKernal(#TRAP_LOAD_TABLE - $E000 + 2) << 8)
+    RomKernal(#TRAP_LOAD_TABLE - $E000) = $02
+    LoadTrapOn = 1 : LoadTrapAt = #TRAP_LOAD_TABLE
   EndIf
 EndProcedure
 
@@ -274,11 +282,17 @@ EndProcedure
 Procedure.i C64TrapLoad()
   Protected i.i, nameAdr.i, e.i, trk.i, sec.i, off.i, n.i, dest.i, adr.i, first.i, guard.i
   If M($BA) <> 8 Or D64Inserted = 0 Or A <> 0
-    ; not ours: run the instruction the trap replaced (STA $93)
-    M($93) = A
-    PC = (#TRAP_LOAD + 2) & $FFFF
+    ; not ours: run what the trap replaced (STA $93, or the table's JMP)
+    If LoadTrapAt = #TRAP_LOAD_TABLE
+      PC = LoadTableTarget
+    Else
+      M($93) = A
+      PC = (#TRAP_LOAD + 2) & $FFFF
+    EndIf
     ProcedureReturn 1
   EndIf
+  ; at the table entry the load address is still in X / Y (the KERNAL keeps it in $C3/$C4)
+  If LoadTrapAt = #TRAP_LOAD_TABLE : M($C3) = X : M($C4) = Y : EndIf
   M($93) = A
   LoadCount = LoadCount + 1
   nameAdr = M($BB) | (M($BC) << 8)
@@ -344,7 +358,7 @@ EndProcedure
 
 Procedure.i C64Trap(addr.i)
   If BenchMode : ProcedureReturn BenchTrap(addr) : EndIf
-  If addr = #TRAP_LOAD And LoadTrapOn : ProcedureReturn C64TrapLoad() : EndIf
+  If addr = LoadTrapAt And LoadTrapOn : ProcedureReturn C64TrapLoad() : EndIf
   ProcedureReturn 0
 EndProcedure
 

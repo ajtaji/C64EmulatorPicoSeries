@@ -1,0 +1,18 @@
+# Boot from the flash store, list the .D64 in drive 8, load a program from it and run it.
+expect C64 mode=basic 20
+expect d64=1 2
+wait 4
+send LOAD"$",8\n
+wait 3
+send LIST\n
+wait 3
+send \`s
+expect PUREMETAL DISK 5
+expect BLOCKS FREE 3
+send LOAD"RASTER*",8,1\n
+wait 3
+send RUN\n
+wait 4
+send \`s
+expect PUREMETAL 5
+wait 6

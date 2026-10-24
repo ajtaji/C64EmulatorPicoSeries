@@ -223,7 +223,7 @@ If mode$ = "boot"
   If prg$ : *prg = LoadFile(prg$, @size) : C64QueuePrg(*prg, size, 1) : EndIf
   If type$
     Define *tx = AllocateMemory(Len(type$) + 2)
-    PokeS(*tx, ReplaceString(type$, "\n", #LF$), -1, #PB_Ascii)
+    PokeS(*tx, ReplaceString(ReplaceString(type$, "\n", #LF$), "\q", Chr(34)), -1, #PB_Ascii)
     C64TypeText(*tx)
   EndIf
   t = ElapsedMilliseconds()
