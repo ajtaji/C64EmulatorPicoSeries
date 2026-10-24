@@ -1,0 +1,135 @@
+C64 PureMetal clk_khz=200000
+C64 core1 launch=1
+C64 audio: none in this build
+C64 mode=basic load_trap=1 d64=0
+C64 spi_hz=100000000 frame_us=19950
+
+>>> expect 'C64 mode=basic': ok
+C64_STATUS frames=35 us=1005874 emu_us=1005806 worst_us=29411 kips=184 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=2 loads=0 cpu_us=145911 vic_us=408623 sid_us=412871
+
+>>> expect 'C64_STATUS': ok
+C64_STATUS frames=35 us=1009907 emu_us=1009181 worst_us=28947 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F68C stop=0 late=5 loads=0 cpu_us=141980 vic_us=415875 sid_us=413038
+C64_STATUS frames=35 us=1009820 emu_us=1009150 worst_us=28942 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F68E stop=0 late=8 loads=0 cpu_us=142020 vic_us=415879 sid_us=413052
+C64_STATUS frames=35 us=1009795 emu_us=1009132 worst_us=28940 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F65E stop=0 late=11 loads=0 cpu_us=141948 vic_us=415917 sid_us=413016
+C64_STATUS frames=35 us=1009763 emu_us=1009093 worst_us=28940 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F660 stop=0 late=14 loads=0 cpu_us=142139 vic_us=415780 sid_us=412967
+
+>>> sent \`s
+SCREEN_BEGIN
+ddddddd   OPEN ROMS GENERIC BUILD       
+dddddd    RELEASE DEV.210823.FC.1       
+ddddd                                   
+dddd      51199 BASIC BYTES FREE        
+                                        
+                                        
+TAPE LOAD NORMAL TURBO                  
+IEC DOLPHIN JIFFY                       
+PAL                                     
+                                        
+READY.                                  
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+SCREEN_END
+
+>>> expect 'READY.': ok
+
+>>> sent 10 REM TYPED ON THE PICO\n
+C64_STATUS frames=35 us=1015377 emu_us=1014654 worst_us=31407 kips=181 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=17 loads=0 cpu_us=145313 vic_us=415816 sid_us=412964
+C64_STATUS frames=35 us=1009840 emu_us=1009159 worst_us=28944 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=20 loads=0 cpu_us=142106 vic_us=415837 sid_us=412971
+
+>>> sent LIST\n
+C64_STATUS frames=35 us=1012717 emu_us=1012037 worst_us=30385 kips=182 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BE stop=0 late=23 loads=0 cpu_us=144918 vic_us=415791 sid_us=413078
+C64_STATUS frames=35 us=1009493 emu_us=1008817 worst_us=28935 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$F660 stop=0 late=26 loads=0 cpu_us=141737 vic_us=415829 sid_us=413022
+
+>>> sent \`s
+SCREEN_BEGIN
+ddddddd   OPEN ROMS GENERIC BUILD       
+dddddd    RELEASE DEV.210823.FC.1       
+ddddd                                   
+dddd      51199 BASIC BYTES FREE        
+                                        
+                                        
+TAPE LOAD NORMAL TURBO                  
+IEC DOLPHIN JIFFY                       
+PAL                                     
+                                        
+READY.                                  
+10 REM TYPED ON THE PICO                
+LIST                                    
+                                        
+10 REM TYPED ON THE PICO                
+READY.                                  
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+SCREEN_END
+C64_STATUS frames=35 us=1012221 emu_us=1011544 worst_us=31327 kips=180 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$F689 stop=0 late=29 loads=0 cpu_us=141906 vic_us=415921 sid_us=412960
+
+>>> expect 'TYPED ON THE PICO': ok
+
+>>> sent \`0
+C64 prg queued size=428
+
+>>> expect 'C64 prg queued': ok
+C64_STATUS frames=35 us=1014327 emu_us=1013532 worst_us=29954 kips=214 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0988 stop=0 late=32 loads=0 cpu_us=146098 vic_us=416042 sid_us=413117
+C64_STATUS frames=35 us=1014105 emu_us=1013430 worst_us=28964 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0974 stop=0 late=35 loads=0 cpu_us=145530 vic_us=416459 sid_us=413295
+C64_STATUS frames=35 us=1013692 emu_us=1013023 worst_us=28962 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0978 stop=0 late=38 loads=0 cpu_us=145249 vic_us=416260 sid_us=413361
+C64_STATUS frames=35 us=1013328 emu_us=1012662 worst_us=28940 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$097C stop=0 late=41 loads=0 cpu_us=145365 vic_us=415961 sid_us=413080
+C64_STATUS frames=35 us=1013659 emu_us=1012990 worst_us=28960 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0984 stop=0 late=44 loads=0 cpu_us=145364 vic_us=416214 sid_us=413193
+C64_STATUS frames=35 us=1013990 emu_us=1013323 worst_us=28964 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$098D stop=0 late=46 loads=0 cpu_us=145523 vic_us=416448 sid_us=413190
+
+>>> sent \`s
+SCREEN_BEGIN
+ddddddd   OPEN ROMS GENERIC BUILD       
+dddddd    RELEASE DEV.210823.FC.1       
+ddddd                                   
+dddd      51199 BASIC BYTES FREE        
+                                        
+                                        
+TAPE LOAD NORMAL TURBO                  
+IEC DOLPHIN JIFFY                       
+PAL                                     
+                                        
+READY.                                  
+10 REM TYPED ON THE PICO                
+LIST           PUREMETAL                
+                                        
+10 REM TYPED ON THE PICO                
+READY.                                  
+RUN                                     
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+SCREEN_END
+
+>>> expect 'PUREMETAL': ok
+C64_STATUS frames=35 us=1015624 emu_us=1014952 worst_us=31011 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$097A stop=0 late=49 loads=0 cpu_us=145419 vic_us=416134 sid_us=413200
+C64_STATUS frames=35 us=1013363 emu_us=1012701 worst_us=28943 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$098D stop=0 late=52 loads=0 cpu_us=145325 vic_us=416044 sid_us=413118
+C64_STATUS frames=35 us=1013928 emu_us=1013257 worst_us=28965 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0978 stop=0 late=55 loads=0 cpu_us=145505 vic_us=416336 sid_us=413155
+C64_STATUS frames=35 us=1013841 emu_us=1013176 worst_us=28966 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$097C stop=0 late=58 loads=0 cpu_us=145325 vic_us=416427 sid_us=413217
+C64_STATUS frames=35 us=1013419 emu_us=1012750 worst_us=28958 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$0980 stop=0 late=61 loads=0 cpu_us=145407 vic_us=415999 sid_us=413202
+C64_STATUS frames=35 us=1013437 emu_us=1012774 worst_us=28954 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0974 stop=0 late=64 loads=0 cpu_us=145345 vic_us=416006 sid_us=413250
+C64_STATUS frames=35 us=1014105 emu_us=1013431 worst_us=28970 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33517 bt_live=0 bt_under=0 bt_packets=0 pc=$097C stop=0 late=67 loads=0 cpu_us=145473 vic_us=416515 sid_us=413270
+C64_STATUS frames=35 us=1013719 emu_us=1013050 worst_us=28959 kips=217 lines_made=9520 lines_out=9520 lcd_frames=35 vid_wait_us=0 sid=33516 bt_live=0 bt_under=0 bt_packets=0 pc=$0982 stop=0 late=70 loads=0 cpu_us=145293 vic_us=416290 sid_us=413244

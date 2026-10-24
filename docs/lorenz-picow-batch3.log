@@ -1,0 +1,20 @@
+> RP2040 ASSEMBLER: 82040 bytes of code run from SRAM at $20000000-$20014077, copied from flash at boot; 110612 bytes of SRAM left free, stacks and reserved windows excluded.
+ROM_TOTAL_RP2040|116588|2097152
+image ends at 0x1001C800
+lease c64 2026-10-23T22:02:44.5217333-05:00 pid 150668 until 22:06
+released
+C64 LORENZ batch 3 of 3 clk_khz=200000
+
+trap12 - ok
+trap13
+trap13 - ok
+trap14
+trap14 - ok
+trap15
+trap15 - ok
+trap16
+trap16 - ok
+trap17LORENZ_NEXT trap17
+
+LORENZ_RESULT batch=3 tests=5 failures=0 instructions=135606 cycles=471763 us=84159 kips=1614
+
