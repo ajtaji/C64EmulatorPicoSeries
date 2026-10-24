@@ -1,0 +1,155 @@
+; Wolfgang Lorenz's 6510 tests on the board, in Christer Palm's test bench:
+; flat 64 KB RAM, traps at $FFD2 (print), $E16F (load the next test), $FFE4
+; (a failed test waits for a key here), $8000 / $A474 (exit). The tests are in
+; flash (lorenz_dataN.pico); the chain stops at the first name this batch does
+; not hold and prints it, so the next batch takes over from there.
+Global LzFailures.i, LzTests.i, LzFinished.i, LzNext.i, LzPrints.i, LzCurrent.i
+
+Procedure.i C64IoRead(addr.i)
+  ProcedureReturn M(addr & $FFFF)
+EndProcedure
+Procedure C64IoWrite(addr.i, v.i)
+  M(addr & $FFFF) = v
+EndProcedure
+Procedure C64PortWrite(addr.i, v.i)
+  M(addr) = v
+EndProcedure
+
+; The record of the test whose name is at name (len bytes), else 0.
+Procedure.i LzFind(name.i, len.i)
+  Protected p.i, n.i, i.i, same.i
+  p = ?LorenzData
+  n = PeekA(p)
+  While n
+    If n = len
+      same = 1
+      For i = 0 To n - 1
+        If PeekA(p + 1 + i) <> PeekA(name + i) : same = 0 : Break : EndIf
+      Next
+      If same : ProcedureReturn p : EndIf
+    EndIf
+    p = p + 1 + n
+    p = p + 2 + (PeekA(p) | (PeekA(p + 1) << 8))
+    n = PeekA(p)
+  Wend
+  ProcedureReturn 0
+EndProcedure
+
+Procedure LzLoad(rec.i)
+  Protected n.i, size.i, data.i, addr.i, i.i
+  n = PeekA(rec)
+  size = PeekA(rec + 1 + n) | (PeekA(rec + 2 + n) << 8)
+  data = rec + 3 + n
+  addr = PeekA(data) | (PeekA(data + 1) << 8)
+  For i = 2 To size - 1
+    M((addr + i - 2) & $FFFF) = PeekA(data + i)
+  Next
+  M($0002) = $00 : M($A002) = $00 : M($A003) = $80
+  M($FFFE) = $48 : M($FFFF) = $FF : M($01FE) = $FF : M($01FF) = $7F
+  For i = 0 To 18
+    M($FF48 + i) = PeekA(?LzIrq + i)
+  Next
+  M($FFD2) = $02 : M($E16F) = $02 : M($FFE4) = $02 : M($8000) = $02 : M($A474) = $02
+  LzTests = LzTests + 1 : LzCurrent = rec
+EndProcedure
+
+Procedure LzSayName(rec.i)
+  Protected i.i
+  For i = 1 To PeekA(rec)
+    UsbSerialWrite(PeekA(rec + i))
+  Next
+EndProcedure
+
+Procedure LzRts()
+  CpuPop(Lo) : CpuPop(Hi)
+  PC = ((Lo | (Hi << 8)) + 1) & $FFFF
+EndProcedure
+
+Global Dim LzName.a(32)
+Procedure.i C64Trap(addr.i)
+  Protected i.i, c.i, n.i, rec.i
+  If addr = $FFD2
+    M($030C) = 0 : LzPrints = LzPrints + 1
+    c = A
+    If c = 13
+      Eol()
+    Else
+      If c >= 65 And c <= 90 : c = c + 32 : ElseIf c >= 193 And c <= 218 : c = c - 128 : EndIf
+      If c >= 32 And c < 127 : UsbSerialWrite(c) : EndIf
+    EndIf
+    LzRts()
+    ProcedureReturn 1
+  EndIf
+  If addr = $E16F
+    n = M($B7)
+    If n > 31 : n = 31 : EndIf
+    For i = 0 To n - 1
+      c = M(((M($BB) | (M($BC) << 8)) + i) & $FFFF)
+      If c >= 65 And c <= 90 : c = c + 32 : EndIf
+      LzName(i) = c
+    Next
+    rec = LzFind(@LzName(0), n)
+    If rec = 0
+      ; the next batch's first test, or trap17: the end of the CPU tests
+      Say("LORENZ_NEXT ") : For i = 0 To n - 1 : UsbSerialWrite(LzName(i)) : Next : Eol()
+      LzFinished = 1 : Stopped = 1
+    Else
+      LzLoad(rec)
+      CpuPop(Lo) : CpuPop(Hi)
+      PC = $0816
+    EndIf
+    ProcedureReturn 1
+  EndIf
+  If addr = $FFE4
+    LzFailures = LzFailures + 1
+    Eol() : Say("*** FAILED: ") : LzSayName(LzCurrent) : Eol()
+    A = 3
+    LzRts()
+    ProcedureReturn 1
+  EndIf
+  If addr = $8000 Or addr = $A474
+    LzFinished = 1 : Stopped = 1
+    ProcedureReturn 1
+  EndIf
+  ProcedureReturn 0
+EndProcedure
+
+Procedure LorenzMain()
+  Protected i.i, rec.i, t.i, us.i, cycles.i, n.i
+  BoardBegin()
+  Say("C64 LORENZ batch ") : Num(#LORENZ_BATCH) : Say(" of ") : Num(#LORENZ_BATCHES) : Say(" clk_khz=") : Num(ClockSysKhz()) : Eol()
+  For i = 0 To 255
+    RdMap(i) = @M(0) : WrMap(i) = @M(0)
+  Next
+  n = 0
+  While PeekA(?LorenzFirst + n) : LzName(n) = PeekA(?LorenzFirst + n) : n = n + 1 : Wend
+  rec = LzFind(@LzName(0), n)
+  If rec = 0
+    Say("LORENZ first test missing") : Eol()
+  Else
+    LzLoad(rec)
+    S = $FD : CpuSetStatus($04) : PC = $0801
+    t = Micros()
+    While Stopped = 0
+      cycles = cycles + CpuRun(50000)
+      SafetyPet() : UsbSerialTask()
+    Wend
+    us = Micros() - t
+    Eol()
+    If LzFinished = 0
+      Say("CPU STOPPED at $") : Hex4(PC) : Say(" opcode $") : Hex2(BadOpcode) : Say(" in ") : LzSayName(LzCurrent) : Eol()
+      LzFailures = LzFailures + 1
+    EndIf
+    Say("LORENZ_RESULT batch=") : Num(#LORENZ_BATCH) : Say(" tests=") : Num(LzTests) : Say(" failures=") : Num(LzFailures)
+    Say(" instructions=") : Num(CpuInstructions) : Say(" cycles=") : Num(cycles) : Say(" us=") : Num(us)
+    Say(" kips=") : Num(CpuInstructions / (us / 1000)) : Eol()
+  EndIf
+  Repeat
+    SafetyPet() : UsbSerialTask()
+  ForEver
+EndProcedure
+
+DataSection
+LzIrq:
+  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
+EndDataSection

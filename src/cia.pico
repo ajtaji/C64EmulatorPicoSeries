@@ -1,0 +1,351 @@
+; The two 6526 CIAs. Unit 0 is CIA 1 at $DC00 (keyboard, joysticks, IRQ),
+; unit 1 is CIA 2 at $DD00 (VIC bank, serial bus, NMI).
+;
+; The timers are counted lazily: each keeps the clock of its last update, and
+; CiaSync(unit, now) catches it up exactly - underflows, reloads, one-shot stops,
+; timer B counting timer A's underflows - whenever a register is touched and at
+; CiaNextEvent, the earliest underflow that can raise an interrupt.
+Global Dim CiaPra.i(2)
+Global Dim CiaPrb.i(2)
+Global Dim CiaDdra.i(2)
+Global Dim CiaDdrb.i(2)
+Global Dim CiaTa.i(2)
+Global Dim CiaTb.i(2)
+Global Dim CiaTaLatch.i(2)
+Global Dim CiaTbLatch.i(2)
+Global Dim CiaCra.i(2)
+Global Dim CiaCrb.i(2)
+Global Dim CiaIcr.i(2)
+Global Dim CiaMask.i(2)
+Global Dim CiaStamp.i(2)
+Global Dim CiaTaStart.i(2)
+Global Dim CiaTbStart.i(2)
+Global Dim CiaTod.i(8)
+Global Dim CiaTodLatch.i(8)
+Global Dim CiaAlarm.i(8)
+Global Dim CiaTodLatched.i(2)
+Global Dim CiaTodStopped.i(2)
+Global Dim CiaTodDiv.i(2)
+Global Dim CiaSdr.i(2)
+; The keyboard: KeyRows(column) has a bit set for each pressed key's row.
+Global Dim KeyRows.i(8)
+Global Joy1.i, Joy2.i
+#CIA_START_DELAY = 2
+#CIA_FAR = 1000000
+
+
+Procedure CiaUpdateLines()
+  Cia1Irq = Bool((CiaIcr(0) & CiaMask(0) & $1F) <> 0)
+  Cia2Nmi = Bool((CiaIcr(1) & CiaMask(1) & $1F) <> 0)
+  C64UpdateIrq()
+EndProcedure
+
+; Advance a counter by n cycles; returns the underflows, leaving the new value
+; in CiaTmpCount. One-shot timers stop at their first underflow (CiaTmpStop).
+Global CiaTmpCount.i, CiaTmpStop.i
+Procedure.i CiaCount(count.i, latch.i, n.i, oneshot.i)
+  Protected rest.i, uf.i, period.i
+  CiaTmpStop = 0
+  If n <= count
+    CiaTmpCount = count - n
+    ProcedureReturn 0
+  EndIf
+  rest = n - count - 1
+  If oneshot
+    CiaTmpCount = latch : CiaTmpStop = 1
+    ProcedureReturn 1
+  EndIf
+  period = latch + 1
+  uf = 1 + rest / period
+  CiaTmpCount = latch - (rest % period)
+  ProcedureReturn uf
+EndProcedure
+
+Procedure CiaSync(unit.i, now.i)
+  Protected n.i, na.i, nb.i, d.i, ufa.i, ufb.i, tbmode.i
+  n = now - CiaStamp(unit)
+  If n <= 0 : ProcedureReturn : EndIf
+  ; a timer started recently counts only from its start clock
+  na = n : d = CiaTaStart(unit) - CiaStamp(unit)
+  If d > 0 : na = n - d : EndIf
+  nb = n : d = CiaTbStart(unit) - CiaStamp(unit)
+  If d > 0 : nb = n - d : EndIf
+  CiaStamp(unit) = now
+  ; keep the start clocks from falling behind the stamp (32-bit clock wrap)
+  If na > 0 : CiaTaStart(unit) = now : EndIf
+  If nb > 0 : CiaTbStart(unit) = now : EndIf
+  ufa = 0
+  If (CiaCra(unit) & $21) = 1 And na > 0
+    ufa = CiaCount(CiaTa(unit), CiaTaLatch(unit), na, CiaCra(unit) & 8)
+    CiaTa(unit) = CiaTmpCount
+    If CiaTmpStop : CiaCra(unit) = CiaCra(unit) & $FE : EndIf
+    If ufa : CiaIcr(unit) = CiaIcr(unit) | 1 : EndIf
+  EndIf
+  If CiaCrb(unit) & 1
+    tbmode = (CiaCrb(unit) >> 5) & 3
+    ufb = 0
+    If tbmode = 0
+      If nb > 0
+        ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), nb, CiaCrb(unit) & 8)
+        CiaTb(unit) = CiaTmpCount
+        If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
+      EndIf
+    ElseIf tbmode >= 2 And ufa > 0
+      ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), ufa, CiaCrb(unit) & 8)
+      CiaTb(unit) = CiaTmpCount
+      If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
+    EndIf
+    If ufb : CiaIcr(unit) = CiaIcr(unit) | 2 : EndIf
+  EndIf
+EndProcedure
+
+; The earliest clock at which a timer underflow can raise an interrupt.
+Procedure CiaPlan(now.i)
+  Protected unit.i, best.i, t.i
+  best = now + #CIA_FAR
+  For unit = 0 To 1
+    If (CiaCra(unit) & $21) = 1
+      If CiaMask(unit) & 3
+        t = CiaStamp(unit)
+        If CiaTaStart(unit) - t > 0 : t = CiaTaStart(unit) : EndIf
+        t = t + CiaTa(unit) + 1
+        If t - best < 0 : best = t : EndIf
+      EndIf
+    EndIf
+    If (CiaCrb(unit) & $61) = 1 And (CiaMask(unit) & 2)
+      t = CiaStamp(unit)
+      If CiaTbStart(unit) - t > 0 : t = CiaTbStart(unit) : EndIf
+      t = t + CiaTb(unit) + 1
+      If t - best < 0 : best = t : EndIf
+    EndIf
+  Next
+  If best - now < 1 : best = now + 1 : EndIf
+  CiaNextEvent = best
+EndProcedure
+
+Procedure CiaSyncAll(now.i)
+  CiaSync(0, now) : CiaSync(1, now)
+  CiaUpdateLines()
+  CiaPlan(now)
+EndProcedure
+
+Procedure CiaReset()
+  Protected u.i, i.i
+  For u = 0 To 1
+    CiaPra(u) = 0 : CiaPrb(u) = 0 : CiaDdra(u) = 0 : CiaDdrb(u) = 0
+    CiaTa(u) = $FFFF : CiaTb(u) = $FFFF : CiaTaLatch(u) = $FFFF : CiaTbLatch(u) = $FFFF
+    CiaCra(u) = 0 : CiaCrb(u) = 0 : CiaIcr(u) = 0 : CiaMask(u) = 0 : CiaStamp(u) = C64Clock
+    CiaTaStart(u) = C64Clock : CiaTbStart(u) = C64Clock
+    CiaTodLatched(u) = 0 : CiaTodStopped(u) = 0 : CiaTodDiv(u) = 0 : CiaSdr(u) = 0
+    For i = 0 To 3
+      CiaTod(u * 4 + i) = 0 : CiaAlarm(u * 4 + i) = 0
+    Next
+    CiaTod(u * 4 + 3) = 1
+  Next
+  For i = 0 To 7 : KeyRows(i) = 0 : Next
+  Joy1 = 0 : Joy2 = 0
+  CiaUpdateLines()
+  CiaPlan(C64Clock)
+  VicBankChanged()
+EndProcedure
+
+; CIA 1's ports: PA drives the keyboard columns (and joystick 2 pulls PA low),
+; PB reads the rows (and joystick 1 pulls PB low). A pressed key joins its
+; column and row, so either side can scan the other.
+Procedure.i CiaKeyPortB()
+  Protected cols.i, col.i, rows.i, pbout.i
+  cols = ((CiaPra(0) | (~CiaDdra(0))) & 255) & (~Joy2)
+  pbout = (CiaPrb(0) | (~CiaDdrb(0))) & 255
+  rows = 255
+  For col = 0 To 7
+    If (cols & (1 << col)) = 0
+      rows = rows & (~KeyRows(col))
+    EndIf
+  Next
+  rows = rows & pbout & (~Joy1)
+  ProcedureReturn rows & 255
+EndProcedure
+Procedure.i CiaKeyPortA()
+  Protected rowsOut.i, col.i, cols.i
+  rowsOut = ((CiaPrb(0) | (~CiaDdrb(0))) & 255) & (~Joy1)
+  cols = (CiaPra(0) | (~CiaDdra(0))) & 255
+  For col = 0 To 7
+    If KeyRows(col) & (~rowsOut) & 255
+      cols = cols & (~(1 << col))
+    EndIf
+  Next
+  ProcedureReturn cols & (~Joy2) & 255
+EndProcedure
+
+Procedure.i CiaBcdInc(v.i)
+  v = v + 1
+  If (v & 15) > 9 : v = (v & $F0) + $10 : EndIf
+  ProcedureReturn v
+EndProcedure
+
+; A tenth of a second of the TOD clock (called five or six times a second's
+; worth of frames: the power line's 50 or 60 Hz divided by 5 or 6).
+Procedure CiaTodTenth(u.i)
+  Protected b.i, h.i, i.i, same.i
+  b = u * 4
+  CiaTod(b) = CiaTod(b) + 1
+  If CiaTod(b) > 9
+    CiaTod(b) = 0
+    CiaTod(b + 1) = CiaBcdInc(CiaTod(b + 1))
+    If CiaTod(b + 1) >= $60
+      CiaTod(b + 1) = 0
+      CiaTod(b + 2) = CiaBcdInc(CiaTod(b + 2))
+      If CiaTod(b + 2) >= $60
+        CiaTod(b + 2) = 0
+        h = CiaTod(b + 3)
+        If (h & $1F) = $12
+          h = (h & $80) | 1
+        ElseIf (h & $1F) = $11
+          h = (CiaBcdInc(h & $1F) & $1F) | ((h & $80) ! $80)
+        Else
+          h = (CiaBcdInc(h & $1F) & $1F) | (h & $80)
+        EndIf
+        CiaTod(b + 3) = h
+      EndIf
+    EndIf
+  EndIf
+  same = 1
+  For i = 0 To 3
+    If CiaTod(b + i) <> CiaAlarm(b + i) : same = 0 : EndIf
+  Next
+  If same : CiaIcr(u) = CiaIcr(u) | 4 : EndIf
+EndProcedure
+
+Procedure CiaFrameTick()
+  Protected u.i, div.i
+  ; frames per tenth: 5 at 50 Hz, 6 at 60 Hz
+  div = 6
+  If C64Pal : div = 5 : EndIf
+  For u = 0 To 1
+    If CiaTodStopped(u) = 0
+      CiaTodDiv(u) = CiaTodDiv(u) + 1
+      If CiaTodDiv(u) >= div
+        CiaTodDiv(u) = 0
+        CiaTodTenth(u)
+      EndIf
+    EndIf
+  Next
+  CiaUpdateLines()
+EndProcedure
+
+Procedure.i CiaRead(unit.i, reg.i, now.i)
+  Protected v.i, b.i
+  CiaSync(unit, now)
+  b = unit * 4
+  If reg = 0
+    If unit = 0 : ProcedureReturn CiaKeyPortA() : EndIf
+    ; CIA 2 PA: VIC bank bits as written; the serial bus's CLK / DATA inputs read
+    ; the lines, which an empty bus leaves high unless this side pulls them.
+    v = (CiaPra(1) | (~CiaDdra(1))) & $3F
+    If (v & $10) = 0 : v = v | $40 : EndIf
+    If (v & $20) = 0 : v = v | $80 : EndIf
+    ProcedureReturn v & 255
+  EndIf
+  If reg = 1
+    If unit = 0 : ProcedureReturn CiaKeyPortB() : EndIf
+    ProcedureReturn (CiaPrb(1) | (~CiaDdrb(1))) & 255
+  EndIf
+  If reg = 2 : ProcedureReturn CiaDdra(unit) : EndIf
+  If reg = 3 : ProcedureReturn CiaDdrb(unit) : EndIf
+  If reg = 4 : ProcedureReturn CiaTa(unit) & 255 : EndIf
+  If reg = 5 : ProcedureReturn (CiaTa(unit) >> 8) & 255 : EndIf
+  If reg = 6 : ProcedureReturn CiaTb(unit) & 255 : EndIf
+  If reg = 7 : ProcedureReturn (CiaTb(unit) >> 8) & 255 : EndIf
+  If reg >= 8 And reg <= 11
+    If reg = 11 And CiaTodLatched(unit) = 0
+      CiaTodLatched(unit) = 1
+      CiaTodLatch(b) = CiaTod(b) : CiaTodLatch(b + 1) = CiaTod(b + 1)
+      CiaTodLatch(b + 2) = CiaTod(b + 2) : CiaTodLatch(b + 3) = CiaTod(b + 3)
+    EndIf
+    If CiaTodLatched(unit)
+      v = CiaTodLatch(b + reg - 8)
+    Else
+      v = CiaTod(b + reg - 8)
+    EndIf
+    If reg = 8 : CiaTodLatched(unit) = 0 : EndIf
+    ProcedureReturn v
+  EndIf
+  If reg = 12 : ProcedureReturn CiaSdr(unit) : EndIf
+  If reg = 13
+    v = CiaIcr(unit)
+    If v & CiaMask(unit) & $1F : v = v | $80 : EndIf
+    CiaIcr(unit) = 0
+    CiaUpdateLines()
+    CiaPlan(now)
+    ProcedureReturn v
+  EndIf
+  If reg = 14 : ProcedureReturn CiaCra(unit) & $EF : EndIf
+  ProcedureReturn CiaCrb(unit) & $EF
+EndProcedure
+
+Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
+  Protected b.i, i.i
+  CiaSync(unit, now)
+  b = unit * 4
+  v = v & 255
+  If reg = 0
+    CiaPra(unit) = v
+    If unit = 1 : VicBankChanged() : EndIf
+  ElseIf reg = 1
+    CiaPrb(unit) = v
+  ElseIf reg = 2
+    CiaDdra(unit) = v
+    If unit = 1 : VicBankChanged() : EndIf
+  ElseIf reg = 3
+    CiaDdrb(unit) = v
+  ElseIf reg = 4
+    CiaTaLatch(unit) = (CiaTaLatch(unit) & $FF00) | v
+  ElseIf reg = 5
+    CiaTaLatch(unit) = (CiaTaLatch(unit) & 255) | (v << 8)
+    If (CiaCra(unit) & 1) = 0 : CiaTa(unit) = CiaTaLatch(unit) : EndIf
+  ElseIf reg = 6
+    CiaTbLatch(unit) = (CiaTbLatch(unit) & $FF00) | v
+  ElseIf reg = 7
+    CiaTbLatch(unit) = (CiaTbLatch(unit) & 255) | (v << 8)
+    If (CiaCrb(unit) & 1) = 0 : CiaTb(unit) = CiaTbLatch(unit) : EndIf
+  ElseIf reg >= 8 And reg <= 11
+    If reg = 11
+      v = v & $9F
+    ElseIf reg <> 8
+      v = v & $7F
+    Else
+      v = v & 15
+    EndIf
+    If CiaCrb(unit) & $80
+      CiaAlarm(b + reg - 8) = v
+    Else
+      CiaTod(b + reg - 8) = v
+      If reg = 11 : CiaTodStopped(unit) = 1 : EndIf
+      If reg = 8 : CiaTodStopped(unit) = 0 : EndIf
+    EndIf
+  ElseIf reg = 12
+    CiaSdr(unit) = v
+    ; a byte shifted out completes at once: the serial-port interrupt
+    If CiaCra(unit) & $40 : CiaIcr(unit) = CiaIcr(unit) | 8 : EndIf
+  ElseIf reg = 13
+    If v & $80
+      CiaMask(unit) = CiaMask(unit) | (v & $1F)
+    Else
+      CiaMask(unit) = CiaMask(unit) & (~(v & $1F))
+    EndIf
+  ElseIf reg = 14
+    If v & $10 : CiaTa(unit) = CiaTaLatch(unit) : EndIf
+    If (v & 1) <> 0 And (CiaCra(unit) & 1) = 0
+      CiaTaStart(unit) = now + #CIA_START_DELAY
+    EndIf
+    CiaCra(unit) = v & $EF
+  Else
+    If v & $10 : CiaTb(unit) = CiaTbLatch(unit) : EndIf
+    If (v & 1) <> 0 And (CiaCrb(unit) & 1) = 0
+      CiaTbStart(unit) = now + #CIA_START_DELAY
+    EndIf
+    CiaCrb(unit) = v & $EF
+  EndIf
+  CiaUpdateLines()
+  CiaPlan(now)
+EndProcedure

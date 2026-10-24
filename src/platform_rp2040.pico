@@ -1,0 +1,9 @@
+; The board's services for the C64: clocks, timer, USB serial (with the
+; compiler's upload path), the watchdog, and the serial print helpers.
+#CLOCK_KHZ = 200000
+XIncludeFile "RP2040/Lib/clocks.pico"
+XIncludeFile "RP2040/Lib/timer.pico"
+XIncludeFile "RP2040/Lib/uart.pico"
+XIncludeFile "RP2040/Lib/usb_serial.pico"
+XIncludeFile "RP2040/Lib/safety.pico"
+XIncludeFile "serial_out.pico"

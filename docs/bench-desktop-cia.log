@@ -1,0 +1,111 @@
+== mmu
+right  0 7  95 86 00 03
+
+*** FAILED: mmu
+BENCH tests=1 failures=1 frames=1 ms=33 instructions=676
+== cpuport
+right  00 df
+
+*** FAILED: cpuport
+BENCH tests=1 failures=1 frames=25 ms=23 instructions=190778
+== cputiming
+
+cputiming - ok
+BENCH tests=2 failures=0 frames=133 ms=76 instructions=771092
+== irq
+irq
+wrong $dc0d
+*** FAILED: irq
+BENCH tests=1 failures=1 frames=1 ms=38 instructions=245
+== nmi
+nmi
+wrong $dd0d
+*** FAILED: nmi
+BENCH tests=1 failures=1 frames=1 ms=44 instructions=242
+== cia1tb123
+
+cia1tb123
+*** TIMEOUT after 3000 frames in cia1tb123
+BENCH tests=1 failures=1 frames=3000 ms=921 instructions=18493072
+== cia2tb123
+
+cia2tb123
+*** TIMEOUT after 3000 frames in cia2tb123
+BENCH tests=1 failures=1 frames=3000 ms=906 instructions=18493072
+== cia1pb6
+cia1pb6
+old new pb6  00 02 -
+*** TIMEOUT after 3000 frames in cia1pb6
+BENCH tests=1 failures=1 frames=3000 ms=973 instructions=17245813
+== cia1pb7
+cia1pb7
+old new pb7  00 02 -
+*** TIMEOUT after 3000 frames in cia1pb7
+BENCH tests=1 failures=1 frames=3000 ms=900 instructions=17245813
+== cia2pb6
+cia2pb6
+old new pb6  00 02 -
+*** TIMEOUT after 3000 frames in cia2pb6
+BENCH tests=1 failures=1 frames=3000 ms=1042 instructions=17245813
+== cia2pb7
+cia2pb7
+old new pb7  00 02 -
+*** TIMEOUT after 3000 frames in cia2pb7
+BENCH tests=1 failures=1 frames=3000 ms=941 instructions=17245813
+== cia1ta
+
+cia1ta
+*** TIMEOUT after 3000 frames in cia1ta
+BENCH tests=1 failures=1 frames=3000 ms=887 instructions=17245782
+== cia1tb
+
+cia1tb
+*** TIMEOUT after 3000 frames in cia1tb
+BENCH tests=1 failures=1 frames=3000 ms=899 instructions=17245782
+== cia2ta
+
+cia2ta
+*** TIMEOUT after 3000 frames in cia2ta
+BENCH tests=1 failures=1 frames=3000 ms=865 instructions=17245784
+== cia2tb
+
+cia2tb
+*** TIMEOUT after 3000 frames in cia2tb
+BENCH tests=1 failures=1 frames=3000 ms=966 instructions=17245784
+== cia1tab
+
+cia1tab
+*** TIMEOUT after 3000 frames in cia1tab
+BENCH tests=1 failures=1 frames=3000 ms=1387 instructions=17246862
+== icr01
+icr01
+cia1 icr is not $01
+*** TIMEOUT after 3000 frames in icr01
+BENCH tests=1 failures=1 frames=3000 ms=961 instructions=17245792
+== imr
+imr
+*** TIMEOUT after 3000 frames in imr
+BENCH tests=1 failures=1 frames=3000 ms=917 instructions=17237144
+== flipos
+flipos
+set oneshot at t may not stop counter
+*** TIMEOUT after 3000 frames in flipos
+BENCH tests=1 failures=1 frames=3000 ms=878 instructions=17245802
+== oneshot
+oneshot
+cra is not $08 at icr=$01
+*** TIMEOUT after 3000 frames in oneshot
+BENCH tests=1 failures=1 frames=3000 ms=845 instructions=17245795
+== cntdef
+cntdef
+*** TIMEOUT after 3000 frames in cntdef
+BENCH tests=1 failures=1 frames=3000 ms=926 instructions=17245783
+== cnto2
+cnto2
+cnt to o2 does not delay 2 clocks
+*** TIMEOUT after 3000 frames in cnto2
+BENCH tests=1 failures=1 frames=3000 ms=891 instructions=17245798
+== loadth
+loadth
+*** TIMEOUT after 3000 frames in loadth
+BENCH tests=1 failures=1 frames=3000 ms=895 instructions=17245777

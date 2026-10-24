@@ -1,0 +1,61 @@
+; Text out over USB serial: Say("text"), Num(n), Hex2(n), Eol().
+Procedure Say(*text.i)
+  Protected p.i, c.i
+  p = *text
+  c = PeekA(p) & 255
+  While c
+    UsbSerialWrite(c)
+    p = p + 1
+    c = PeekA(p) & 255
+  Wend
+EndProcedure
+Procedure Num(v.i)
+  Protected d.i
+  If v < 0
+    UsbSerialWrite(45)
+    v = 0 - v
+  EndIf
+  d = 1
+  While v / d >= 10
+    d = d * 10
+  Wend
+  While d > 0
+    UsbSerialWrite(48 + (v / d) % 10)
+    d = d / 10
+  Wend
+EndProcedure
+Procedure HexDigit(v.i)
+  v = v & 15
+  If v < 10 : UsbSerialWrite(48 + v) : Else : UsbSerialWrite(55 + v) : EndIf
+EndProcedure
+Procedure Hex2(v.i)
+  HexDigit(v >> 4) : HexDigit(v)
+EndProcedure
+Procedure Hex4(v.i)
+  Hex2(v >> 8) : Hex2(v)
+EndProcedure
+Procedure Eol()
+  UsbSerialWrite(13) : UsbSerialWrite(10)
+  UsbSerialFlush() : UsbSerialTask()
+EndProcedure
+Procedure WaitUs(us.i)
+  Protected t.i
+  t = Micros()
+  While Micros() - t < us
+    UsbSerialTask() : SafetyPet()
+  Wend
+EndProcedure
+; Bring up the board and wait (up to 10 s) for the host to open the port.
+Procedure BoardBegin()
+  Protected t.i
+  SafetyBoot()
+  ClockInitKhz(#CLOCK_KHZ)
+  TimerInit()
+  UsbSerialInit()
+  t = Micros()
+  While UsbSerialReady() = 0
+    UsbSerialTask() : SafetyPet()
+    If Micros() - t > 10000000 : Break : EndIf
+  Wend
+  WaitUs(200000)
+EndProcedure

@@ -1,0 +1,248 @@
+; The SID (6581), sampled at 48 kHz into a ring of signed 16-bit samples that
+; the platform plays (the Pico's Bluetooth speaker, the PC's sound card).
+;
+; Integer only (the Pico W's M0+ has no FPU). Per voice: the 24-bit phase
+; accumulator stepped by FREQ x the machine cycles in a sample; triangle, saw,
+; pulse and the 23-bit noise LFSR (clocked by accumulator bit 19), combined
+; waveforms as the AND of their parts; hard sync and ring modulation from the
+; previous voice; the envelope with the chip's own rate table and its
+; exponential decay / release steps. The filter is a state-variable filter
+; (low, band, high pass) with an 11-bit cutoff and 4-bit resonance; the volume
+; register also moves the output's DC level, which is how $D418 digis sound.
+#SID_RATE = 48000
+#SID_RING = 4096
+Global Dim SidReg.i(32)
+Global Dim SidAcc.i(3)
+Global Dim SidStep.i(3)
+Global Dim SidLfsr.i(3)
+Global Dim SidEnv.i(3)
+Global Dim SidEnvState.i(3)
+Global Dim SidRateCnt.i(3)
+Global Dim SidExpCnt.i(3)
+Global Dim SidOut.i(3)
+Global Dim SidMsbRise.i(3)
+Global Dim SidRates.i(16)
+Global Dim SidPcm.w(#SID_RING)
+Global SidSamples.i, SidPhase.i, SidCps16.i, SidLast.i
+Global SidW.i, SidQ.i, SidLp.i, SidBp.i, SidHp.i, SidDcIn.i, SidDcOut.i
+Global SidOsc3.i, SidEnv3.i, SidMute.i
+
+Procedure SidSetCutoff()
+  Protected cut.i, hz.i, xr.i, xc.i
+  cut = ((SidReg($16) << 3) | (SidReg($15) & 7)) & $7FF
+  ; cutoff in Hz, about 30 Hz .. 12 kHz across the 11 bits
+  hz = 30 + (cut * 5860) / 1000
+  ; w = 2 sin(pi hz / fs) in Q12: xr = pi hz / fs in Q16, sin xr ~ xr - xr^3/6
+  xr = (hz * 4289) / 1000
+  xc = (((xr * xr) >> 16) * xr) >> 16
+  SidW = ((xr - xc / 6) * 2) >> 4
+  ; damping 1/Q in Q12: 1.41 at resonance 0 down to about 0.3 at 15
+  SidQ = 5793 - ((SidReg($17) >> 4) & 15) * 300
+EndProcedure
+
+Procedure SidStepOf(v.i)
+  SidStep(v) = ((SidReg(v * 7) | (SidReg(v * 7 + 1) << 8)) * SidCps16) >> 16
+EndProcedure
+
+Procedure SidReset()
+  Protected i.i
+  For i = 0 To 31 : SidReg(i) = 0 : Next
+  For i = 0 To 2
+    SidAcc(i) = 0 : SidStep(i) = 0 : SidLfsr(i) = $7FFFF8 : SidEnv(i) = 0 : SidEnvState(i) = 2
+    SidRateCnt(i) = 0 : SidExpCnt(i) = 0 : SidOut(i) = 0
+  Next
+  For i = 0 To 15 : SidRates(i) = PeekU(?SidRateData + i * 2) : Next
+  SidCps16 = (C64Hz * 65536) / #SID_RATE
+  SidPhase = 0 : SidLast = C64Clock
+  SidLp = 0 : SidBp = 0 : SidHp = 0 : SidDcIn = 0 : SidDcOut = 0
+  SidSetCutoff()
+EndProcedure
+
+Procedure.i SidRead(reg.i)
+  If reg = $19 Or reg = $1A : ProcedureReturn $FF : EndIf
+  If reg = $1B : ProcedureReturn SidOsc3 : EndIf
+  If reg = $1C : ProcedureReturn SidEnv3 : EndIf
+  ProcedureReturn 0
+EndProcedure
+
+Procedure SidWrite(reg.i, v.i)
+  Protected voice.i, old.i
+  v = v & 255
+  If reg > $18 : ProcedureReturn : EndIf
+  old = SidReg(reg)
+  SidReg(reg) = v
+  If reg < 21
+    voice = reg / 7
+    If reg % 7 <= 1 : SidStepOf(voice) : EndIf
+    If reg % 7 = 4
+      If (v & 1) <> 0 And (old & 1) = 0 : SidEnvState(voice) = 0 : EndIf
+      If (v & 1) = 0 And (old & 1) <> 0 : SidEnvState(voice) = 2 : EndIf
+      If v & 8 : SidAcc(voice) = 0 : SidLfsr(voice) = $7FFFF8 : EndIf
+    EndIf
+  ElseIf reg <= $17
+    SidSetCutoff()
+  EndIf
+EndProcedure
+
+; One envelope's step: rate counter in 16.16 cycles, the exponential divider
+; for decay and release.
+Procedure SidEnvelope(v.i)
+  Protected ctl.i, period.i, state.i, sus.i, env.i, ep.i
+  state = SidEnvState(v)
+  env = SidEnv(v)
+  If state = 0
+    period = SidRates((SidReg(v * 7 + 5) >> 4) & 15)
+  ElseIf state = 1
+    period = SidRates(SidReg(v * 7 + 5) & 15)
+  Else
+    period = SidRates(SidReg(v * 7 + 6) & 15)
+  EndIf
+  SidRateCnt(v) = SidRateCnt(v) + SidCps16
+  While SidRateCnt(v) >= (period << 16)
+    SidRateCnt(v) = SidRateCnt(v) - (period << 16)
+    If state = 0
+      env = env + 1
+      If env >= 255 : env = 255 : state = 1 : EndIf
+    Else
+      ep = 1
+      If env < 94 : ep = 2 : EndIf
+      If env < 55 : ep = 4 : EndIf
+      If env < 27 : ep = 8 : EndIf
+      If env < 15 : ep = 16 : EndIf
+      If env < 7 : ep = 30 : EndIf
+      SidExpCnt(v) = SidExpCnt(v) + 1
+      If SidExpCnt(v) >= ep
+        SidExpCnt(v) = 0
+        sus = (SidReg(v * 7 + 6) >> 4) * 17
+        If state = 1
+          If env > sus : env = env - 1 : EndIf
+        ElseIf env > 0
+          env = env - 1
+        EndIf
+      EndIf
+    EndIf
+  Wend
+  SidEnv(v) = env
+  SidEnvState(v) = state
+EndProcedure
+
+; The 12-bit waveform of voice v at its current accumulator.
+Procedure.i SidWave(v.i)
+  Protected ctl.i, acc.i, out.i, w.i, tri.i, src.i, n.i
+  ctl = SidReg(v * 7 + 4)
+  acc = SidAcc(v)
+  out = $FFF
+  w = 0
+  If ctl & $10
+    src = v - 1
+    If src < 0 : src = 2 : EndIf
+    tri = acc
+    If ctl & 4
+      If (acc ! SidAcc(src)) & $800000 : tri = (~acc) & $FFFFFF : Else : tri = acc : EndIf
+    ElseIf acc & $800000
+      tri = (~acc) & $FFFFFF
+    EndIf
+    out = out & ((tri >> 11) & $FFF) : w = 1
+  EndIf
+  If ctl & $20 : out = out & (acc >> 12) : w = 1 : EndIf
+  If ctl & $40
+    If (ctl & 8) <> 0 Or (acc >> 12) >= (SidReg(v * 7 + 2) | ((SidReg(v * 7 + 3) & 15) << 8))
+      out = out & $FFF
+    Else
+      out = 0
+    EndIf
+    w = 1
+  EndIf
+  If ctl & $80
+    n = SidLfsr(v)
+    out = out & ((((n >> 22) & 1) << 11) | (((n >> 20) & 1) << 10) | (((n >> 16) & 1) << 9) | (((n >> 13) & 1) << 8) | (((n >> 11) & 1) << 7) | (((n >> 7) & 1) << 6) | (((n >> 4) & 1) << 5) | (((n >> 2) & 1) << 4))
+    w = 1
+  EndIf
+  If w = 0 : out = 0 : EndIf
+  ProcedureReturn out
+EndProcedure
+
+; Produce the samples due by machine clock now.
+Procedure SidRun(now.i)
+  Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i
+  n = now - SidLast
+  If n <= 0 : ProcedureReturn : EndIf
+  If n > 100000 : n = 100000 : EndIf
+  SidLast = now
+  SidPhase = SidPhase + (n << 16)
+  route = SidReg($17) & 7
+  mode = SidReg($18) & $70
+  vol = SidReg($18) & 15
+  While SidPhase >= SidCps16
+    SidPhase = SidPhase - SidCps16
+    For v = 0 To 2
+      old = SidAcc(v)
+      If SidReg(v * 7 + 4) & 8
+        acc = 0
+      Else
+        acc = (old + SidStep(v)) & $FFFFFF
+      EndIf
+      SidMsbRise(v) = Bool((old & $800000) = 0 And (acc & $800000) <> 0)
+      ; noise: one LFSR clock per rising edge of accumulator bit 19
+      k = 0
+      If (SidReg(v * 7 + 4) & 8) = 0
+        k = ((old + SidStep(v) + $80000) >> 20) - ((old + $80000) >> 20)
+        If k > 32 : k = 32 : EndIf
+      EndIf
+      While k > 0
+        bit = ((SidLfsr(v) >> 22) ! (SidLfsr(v) >> 17)) & 1
+        SidLfsr(v) = ((SidLfsr(v) << 1) | bit) & $7FFFFF
+        k = k - 1
+      Wend
+      SidAcc(v) = acc
+    Next
+    ; hard sync: a voice restarts when the previous one's MSB rises
+    For v = 0 To 2
+      i = v - 1
+      If i < 0 : i = 2 : EndIf
+      If (SidReg(v * 7 + 4) & 2) <> 0 And SidMsbRise(i) : SidAcc(v) = 0 : EndIf
+    Next
+    filt = 0 : direct = 0
+    For v = 0 To 2
+      SidEnvelope(v)
+      o = ((SidWave(v) - $800) * SidEnv(v)) >> 6
+      If v = 2
+        SidOsc3 = (SidWave(2) >> 4) & 255
+        SidEnv3 = SidEnv(2)
+      EndIf
+      If (route >> v) & 1
+        filt = filt + o
+      ElseIf v < 2 Or (SidReg($18) & $80) = 0
+        direct = direct + o
+      EndIf
+    Next
+    ; filter (Q12 state-variable)
+    SidHp = filt - SidLp - ((SidBp * SidQ) >> 12)
+    SidBp = SidBp + ((SidW * SidHp) >> 12)
+    SidLp = SidLp + ((SidW * SidBp) >> 12)
+    If SidBp > 400000 : SidBp = 400000 : EndIf
+    If SidBp < -400000 : SidBp = -400000 : EndIf
+    If SidLp > 400000 : SidLp = 400000 : EndIf
+    If SidLp < -400000 : SidLp = -400000 : EndIf
+    o = 0
+    If mode & $10 : o = o + SidLp : EndIf
+    If mode & $20 : o = o + SidBp : EndIf
+    If mode & $40 : o = o + SidHp : EndIf
+    ; the 6581's DC offset follows the volume: the digi path
+    mix = ((o + direct) * vol) / 15 + vol * 1600
+    ; DC blocker, then scale to 16 bits
+    SidDcOut = mix - SidDcIn + ((SidDcOut * 255) >> 8)
+    SidDcIn = mix
+    o = SidDcOut
+    If o > 32767 : o = 32767 : EndIf
+    If o < -32768 : o = -32768 : EndIf
+    If SidMute : o = 0 : EndIf
+    SidPcm(SidSamples & (#SID_RING - 1)) = o
+    SidSamples = SidSamples + 1
+  Wend
+EndProcedure
+
+DataSection
+SidRateData:
+  Data.u 9, 32, 63, 95, 149, 220, 267, 313, 392, 977, 1954, 3126, 3907, 11720, 19532, 31251
+EndDataSection

@@ -1,0 +1,9 @@
+; The board's services for the C64: clocks, timer, USB serial (with the
+; compiler's upload path), the watchdog, and the serial print helpers.
+#CLOCK_KHZ = 150000
+XIncludeFile "RP2350/Lib/clocks.pico2"
+XIncludeFile "RP2350/Lib/timer.pico2"
+XIncludeFile "RP2350/Lib/uart.pico2"
+XIncludeFile "RP2350/Lib/usb_serial.pico2"
+XIncludeFile "RP2350/Lib/safety.pico2"
+XIncludeFile "serial_out.pico"
