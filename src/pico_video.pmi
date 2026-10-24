@@ -15,7 +15,8 @@
 #VID_H = 272
 #VID_RING = 32
 #VID_BATCH = 4
-Global Dim LineRing.a(#VID_RING * #VID_W)
+; whole words, so every line starts word-aligned (the VIC writes it 32 bits at a time)
+Global Dim LineRing.l(#VID_RING * #VID_W / 4)
 Global Dim LineTag.i(#VID_RING)
 Global Dim Pal565.u(32)
 Global Dim DmaBuf.u(2 * #VID_BATCH * #VID_W)
@@ -53,7 +54,7 @@ ProcedureRAM.i PlatformLine(viewY.i)
   EndIf
   slot = LinesMade & (#VID_RING - 1)
   LineTag(slot) = viewY
-  ProcedureReturn @LineRing(slot * #VID_W)
+  ProcedureReturn @LineRing(0) + slot * #VID_W
 EndProcedure
 ProcedureRAM PlatformLineDone(viewY.i)
   VidFence()
@@ -98,7 +99,7 @@ ProcedureRAM.i VidConvert()
     tag = LineTag(slot)
     If tag <> VidNextRow + n : Break : EndIf
     VidFence()
-    src = @LineRing(slot * #VID_W)
+    src = @LineRing(0) + slot * #VID_W
     For i = 0 To #VID_W - 1
       PokeU(dst, Pal565(PeekA(src + i)))
       dst = dst + 2

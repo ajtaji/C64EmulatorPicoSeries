@@ -19,8 +19,12 @@ Procedure PlatformLineDone(viewY.i)
 EndProcedure
 Procedure PlatformTick()
 EndProcedure
+Global HostFreq.q, HostStart.q
 Procedure.i PlatformUs()
-  ProcedureReturn 0
+  Protected now.q
+  If HostFreq = 0 : QueryPerformanceFrequency_(@HostFreq) : QueryPerformanceCounter_(@HostStart) : EndIf
+  QueryPerformanceCounter_(@now)
+  ProcedureReturn ((now - HostStart) * 1000000) / HostFreq
 EndProcedure
 Procedure PlatformFrameDone()
   FramesDone + 1
@@ -169,11 +173,12 @@ If mode$ = "bench"
 EndIf
 
 If mode$ = "demo"
-  *prg = LoadFile(GetPathPart(ProgramFilename()) + "..\tests\demo.prg", @size)
+  If prg$ = "" : prg$ = GetPathPart(ProgramFilename()) + "..\tests\demo.prg" : EndIf
+  *prg = LoadFile(prg$, @size)
   BenchRoms() : BenchMode = 0
   C64PowerOn()
   C64InjectPrg(*prg, size, 0)
-  PC = $C000
+  PC = PeekA(*prg) | (PeekA(*prg + 1) << 8)
   Define peak.i, k.i
   Define wavf.i, cur.i
   If wav$ : wavf = CreateFile(#PB_Any, wav$) : WriteData(wavf, ?WavHead, 44) : EndIf
@@ -192,6 +197,7 @@ If mode$ = "demo"
   For k = 0 To #SID_RING - 1
     If Abs(SidPcm(k)) > peak : peak = Abs(SidPcm(k)) : EndIf
   Next
+  PrintN("PERF cpu_us=" + Str(PerfCpuUs) + " vic_us=" + Str(PerfVicUs) + " sid_us=" + Str(PerfSidUs))
   PrintN("DEMO frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " raster_irqs_flag=" + Str(VicIrqFlags) + " sid_samples=" + Str(SidSamples) + " sid_peak=" + Str(peak))
   If shot$ : SaveShot(shot$) : EndIf
   End 0
@@ -227,6 +233,7 @@ If mode$ = "boot"
   Next
   t = ElapsedMilliseconds() - t
   Print(ScreenText())
+  PrintN("PERF cpu_us=" + Str(PerfCpuUs) + " vic_us=" + Str(PerfVicUs) + " sid_us=" + Str(PerfSidUs))
   PrintN("BOOT frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " loads=" + Str(LoadCount) + " sid_samples=" + Str(SidSamples))
   If shot$ : SaveShot(shot$) : EndIf
   End 0

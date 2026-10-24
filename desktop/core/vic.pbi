@@ -29,6 +29,11 @@ Global VicRaster.i, VicCompare.i, VicIrqFlags.i, VicIrqMask.i
 Global VicDenSeen.i, VicVcBase.i, VicVc.i, VicRc.i, VicDisplay.i, VicVBorder.i = 1
 Global VicSprSpr.i, VicSprBg.i, VicViewY0.i = 15, VicViewH.i = 272
 Global VicOut.i, VicLinesDrawn.i
+; Eight pixels a cell as two 32-bit stores: Mask4(n) has byte k = $FF where bit 3-k of n is
+; set (the leftmost pixel is the lowest byte). Cells are built in GfxBuf (word-aligned),
+; or straight into the line when there is no X scroll, then placed at the scroll offset.
+Global Dim Mask4.l(16)
+Global Dim GfxBuf.l(84)
 
 Procedure.i VicIrqActive()
   ProcedureReturn VicIrqFlags & VicIrqMask & 15
@@ -52,7 +57,14 @@ Macro VicMem(adr)
 EndMacro
 
 Procedure VicReset()
-  Protected i.i
+  Protected i.i, k.i, m.i
+  For i = 0 To 15
+    m = 0
+    For k = 0 To 3
+      If (i >> (3 - k)) & 1 : m = m | ($FF << (k * 8)) : EndIf
+    Next
+    Mask4(i) = m
+  Next
   For i = 0 To 63 : VicReg(i) = 0 : Next
   For i = 0 To 7
     SprDma(i) = 0 : SprDisp(i) = 0 : SprMcBase(i) = 0 : SprMc(i) = 0 : SprFF(i) = 1 : SprData(i) = 0
@@ -151,62 +163,6 @@ Procedure VicStartLine()
   If VicRaster = 0 : C64UpdateIrq(C64LineStart + 1) : Else : C64UpdateIrq(C64LineStart) : EndIf
 EndProcedure
 
-; Eight pixels of one cell. g is the graphics byte; mode as $D011/$D016 select.
-Procedure VicCell(p.i, g.i, c.i, col.i, mode.i)
-  Protected i.i, f.i, b.i, q.i, k.i
-  If mode = 0 Or mode = 4 Or (mode = 1 And (col & 8) = 0) Or mode = 2 Or mode = 6 Or (mode = 5 And (col & 8) = 0)
-    ; hires: a set bit is the foreground colour
-    If mode = 0
-      f = col | 16 : b = VicReg($21)
-    ElseIf mode = 1
-      f = (col & 7) | 16 : b = VicReg($21)
-    ElseIf mode = 2
-      f = (c >> 4) | 16 : b = c & 15
-    ElseIf mode = 4
-      f = col | 16 : b = VicReg($21 + (c >> 6))
-    Else
-      f = 16 : b = 0
-    EndIf
-    b = b & 15
-    For i = 0 To 7
-      q = p + i
-      If q < #VIC_W
-        If g & (128 >> i) : PokeA(VicOut + q, f) : Else : PokeA(VicOut + q, b) : EndIf
-      EndIf
-    Next
-    ProcedureReturn
-  EndIf
-  ; multicolour: pixel pairs
-  For i = 0 To 3
-    k = (g >> (6 - i * 2)) & 3
-    If mode = 3 Or mode = 7
-      If k = 0
-        f = VicReg($21) & 15
-      ElseIf k = 1
-        f = c >> 4
-      ElseIf k = 2
-        f = (c & 15) | 16
-      Else
-        f = (col & 15) | 16
-      EndIf
-    Else
-      If k = 0
-        f = VicReg($21) & 15
-      ElseIf k = 1
-        f = VicReg($22) & 15
-      ElseIf k = 2
-        f = (VicReg($23) & 15) | 16
-      Else
-        f = (col & 7) | 16
-      EndIf
-    EndIf
-    If mode >= 5 : f = f & 16 : EndIf
-    q = p + i * 2
-    If q < #VIC_W : PokeA(VicOut + q, f) : EndIf
-    If q + 1 < #VIC_W : PokeA(VicOut + q + 1, f) : EndIf
-  Next
-EndProcedure
-
 Procedure.i VicSprites()
   Protected n.i, sx.i, pos.i, w.i, q.i, bits.i, sbits.i, xe.i, mc.i, prio.i, col.i, i.i, k.i, c.i
   Protected old.i, ss.i, sb.i, any.i, rep.i, j.i
@@ -290,6 +246,90 @@ Procedure.i VicSprites()
   ProcedureReturn 1
 EndProcedure
 
+; Fill [from, upto) of the line with colour c: bytes to a word boundary, then words.
+Procedure VicFill(from.i, upto.i, c.i)
+  Protected ad.i, en.i, w.i
+  ad = VicOut + from : en = VicOut + upto
+  While (ad & 3) <> 0 And ad < en : PokeA(ad, c) : ad = ad + 1 : Wend
+  w = c * $01010101
+  While ad + 4 <= en : PokeL(ad, w) : ad = ad + 4 : Wend
+  While ad < en : PokeA(ad, c) : ad = ad + 1 : Wend
+EndProcedure
+
+; The 40 cells of a display line (or the idle pattern), every mode, two words a cell.
+Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
+  Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w.i, bg0.i, k0.i, k1.i, k2.i, k3.i, mc.i, base.i, src.i, dst.i
+  Protected p0.i, p1.i, p2.i, p3.i
+  bg0 = VicReg($21) & 15
+  If mode >= 5 : bg0 = 0 : EndIf
+  gp = @GfxBuf(0)
+  If xs = 0 : gp = VicOut + 32 : EndIf
+  base = gp
+  If VicDisplay = 0
+    If mode & 4 : g = VicMem($39FF) : Else : g = VicMem($3FFF) : EndIf
+  EndIf
+  For i = 0 To 39
+    If VicDisplay
+      c = VmLine(i) : col = ColLine(i)
+      If mode & 2
+        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+      ElseIf mode & 4
+        g = VicMem(cb + ((c & $3F) << 3) + VicRc)
+      Else
+        g = VicMem(cb + (c << 3) + VicRc)
+      EndIf
+    Else
+      c = 0 : col = 0
+    EndIf
+    mc = 0
+    If mode = 0
+      f = col | 16 : b = bg0
+    ElseIf mode = 1
+      If col & 8
+        mc = 1 : p0 = bg0 : p1 = VicReg($22) & 15 : p2 = (VicReg($23) & 15) | 16 : p3 = (col & 7) | 16
+      Else
+        f = (col & 7) | 16 : b = bg0
+      EndIf
+    ElseIf mode = 2
+      f = (c >> 4) | 16 : b = c & 15
+    ElseIf mode = 3
+      mc = 1 : p0 = bg0 : p1 = c >> 4 : p2 = (c & 15) | 16 : p3 = (col & 15) | 16
+    ElseIf mode = 4
+      f = col | 16 : b = VicReg($21 + (c >> 6)) & 15
+    ElseIf mode = 5
+      If col & 8
+        mc = 1 : p0 = 0 : p1 = 0 : p2 = 16 : p3 = 16
+      Else
+        f = 16 : b = 0
+      EndIf
+    ElseIf mode = 6
+      f = 16 : b = 0
+    Else
+      mc = 1 : p0 = 0 : p1 = 0 : p2 = 16 : p3 = 16
+    EndIf
+    If mc
+      k0 = (g >> 6) & 3 : k1 = (g >> 4) & 3 : k2 = (g >> 2) & 3 : k3 = g & 3
+      If k0 = 0 : w = p0 : ElseIf k0 = 1 : w = p1 : ElseIf k0 = 2 : w = p2 : Else : w = p3 : EndIf
+      If k1 = 0 : m = p0 : ElseIf k1 = 1 : m = p1 : ElseIf k1 = 2 : m = p2 : Else : m = p3 : EndIf
+      PokeL(gp, (w * $0101) | ((m * $0101) << 16))
+      If k2 = 0 : w = p0 : ElseIf k2 = 1 : w = p1 : ElseIf k2 = 2 : w = p2 : Else : w = p3 : EndIf
+      If k3 = 0 : m = p0 : ElseIf k3 = 1 : m = p1 : ElseIf k3 = 2 : m = p2 : Else : m = p3 : EndIf
+      PokeL(gp + 4, (w * $0101) | ((m * $0101) << 16))
+    Else
+      f = f * $01010101 : b = b * $01010101
+      m = Mask4((g >> 4) & 15)
+      PokeL(gp, (m & f) | ((~m) & b))
+      m = Mask4(g & 15)
+      PokeL(gp + 4, (m & f) | ((~m) & b))
+    EndIf
+    gp = gp + 8
+  Next
+  If xs
+    src = base : dst = VicOut + 32 + xs
+    For i = 0 To 319 : PokeA(dst + i, PeekA(src + i)) : Next
+  EndIf
+EndProcedure
+
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and
 ; border, then the sprites' MCBASE steps of cycles 15 and 16.
 Procedure VicDrawLine()
@@ -321,9 +361,9 @@ Procedure VicDrawLine()
     VicOut = PlatformLine(vy)
     bc = VicReg($20) & 15
     If VicVBorder
-      For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
+      VicFill(0, #VIC_W, bc)
       ; sprites still collide under the border: draw them, then the border over them
-      If VicSprites() : For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next : EndIf
+      If VicSprites() : VicFill(0, #VIC_W, bc) : EndIf
     Else
       mode = ((VicReg($11) >> 4) & 6) | ((VicReg($16) >> 4) & 1)
       c = VicReg($21) & 15
@@ -333,53 +373,15 @@ Procedure VicDrawLine()
       For i = 32 To 31 + xs : PokeA(VicOut + i, c) : Next
       cb = (VicReg($18) & $0E) << 10
       bb = (VicReg($18) & 8) << 10
-      If VicDisplay And mode = 0
-        ; standard text, the common case, inline
-        p = VicOut + 32 + xs
-        For i = 0 To 39
-          g = VicMem(cb + (VmLine(i) << 3) + VicRc)
-          If g = 0
-            PokeA(p, c) : PokeA(p + 1, c) : PokeA(p + 2, c) : PokeA(p + 3, c)
-            PokeA(p + 4, c) : PokeA(p + 5, c) : PokeA(p + 6, c) : PokeA(p + 7, c)
-          Else
-            col = ColLine(i) | 16
-            If g & $80 : PokeA(p, col) : Else : PokeA(p, c) : EndIf
-            If g & $40 : PokeA(p + 1, col) : Else : PokeA(p + 1, c) : EndIf
-            If g & $20 : PokeA(p + 2, col) : Else : PokeA(p + 2, c) : EndIf
-            If g & $10 : PokeA(p + 3, col) : Else : PokeA(p + 3, c) : EndIf
-            If g & 8 : PokeA(p + 4, col) : Else : PokeA(p + 4, c) : EndIf
-            If g & 4 : PokeA(p + 5, col) : Else : PokeA(p + 5, c) : EndIf
-            If g & 2 : PokeA(p + 6, col) : Else : PokeA(p + 6, c) : EndIf
-            If g & 1 : PokeA(p + 7, col) : Else : PokeA(p + 7, c) : EndIf
-          EndIf
-          p = p + 8
-        Next
-      ElseIf VicDisplay
-        For i = 0 To 39
-          c = VmLine(i) : col = ColLine(i)
-          If mode & 2
-            g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
-          ElseIf mode & 4
-            g = VicMem(cb + ((c & $3F) << 3) + VicRc)
-          Else
-            g = VicMem(cb + (c << 3) + VicRc)
-          EndIf
-          VicCell(32 + xs + i * 8, g, c, col, mode)
-        Next
-      Else
-        If mode & 4 : g = VicMem($39FF) : Else : g = VicMem($3FFF) : EndIf
-        For i = 0 To 39
-          VicCell(32 + xs + i * 8, g, 0, 0, mode)
-        Next
-      EndIf
+      VicCells(mode, xs, cb, bb)
       VicSprites()
       If VicReg($16) & 8
         lft = 32 : rgt = 352
       Else
         lft = 39 : rgt = 343
       EndIf
-      For i = 0 To lft - 1 : PokeA(VicOut + i, bc) : Next
-      For i = rgt To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
+      VicFill(0, lft, bc)
+      VicFill(rgt, #VIC_W, bc)
     EndIf
     PlatformLineDone(vy)
     VicLinesDrawn = VicLinesDrawn + 1
