@@ -1,0 +1,59 @@
+C64 PureMetal clk_khz=200000
+C64 core1 launch=1
+C64 audio: none in this build
+C64 mode=basic load_trap=1 d64=1
+C64 spi_hz=100000000 frame_us=19950
+C64_STATUS frames=51 us=1017451 emu_us=869202 worst_us=17487 kips=267 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=220831 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=0 loads=0
+
+>>> expect 'C64_STATUS': ok
+
+>>> sent \`b
+C64 mode=basic load_trap=1 d64=1
+C64_STATUS frames=51 us=1017449 emu_us=881899 worst_us=18785 kips=267 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=233398 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F689 stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017451 emu_us=868230 worst_us=17133 kips=262 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=221283 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017449 emu_us=868174 worst_us=17132 kips=262 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=221266 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017450 emu_us=868212 worst_us=17135 kips=262 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=221412 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7BC stop=0 late=0 loads=0
+
+>>> sent \`0
+C64 prg queued size=1716
+C64_STATUS frames=51 us=1017452 emu_us=886336 worst_us=18218 kips=307 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=133630 sid=48840 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017448 emu_us=871997 worst_us=17111 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198665 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017452 emu_us=871980 worst_us=17105 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198641 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017448 emu_us=871987 worst_us=17107 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198670 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017452 emu_us=871980 worst_us=17105 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198648 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017449 emu_us=871988 worst_us=17106 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198669 sid=48840 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017451 emu_us=871984 worst_us=17106 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198675 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017448 emu_us=871981 worst_us=17106 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198683 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+
+>>> sent \`s
+SCREEN_BEGIN
+PUREMETAL C64 SELF TEST - NO KERNAL USED
+                                        
+PLA ........ OK                         
+KEYBOARD ... OK                         
+TIMER ...... OK                         
+TOD ........ OK                         
+RASTER ..... OK                         
+SPRITES .... OK                         
+BADLINE .... OK                         
+SID ........ OK                         
+NMI ........ OK                         
+                                        
+                                        
+ALL TESTS PASSED                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+SCREEN_END
+
+>>> expect 'PASSED': ok
+C64_STATUS frames=51 us=1017450 emu_us=872849 worst_us=17945 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=197675 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017450 emu_us=871994 worst_us=17106 kips=317 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=198663 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$09CF stop=0 late=0 loads=0

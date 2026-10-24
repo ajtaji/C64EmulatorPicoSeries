@@ -42,6 +42,12 @@ Wolfgang Lorenz's C64 test suite 2.15 (public domain, `tests/lorenz/`):
 - `cputiming` (instruction timing measured with a CIA timer) and `cpuport` pass on the whole machine;
 - the CIA, IRQ and banking tests that follow need the real KERNAL's state and are run once ROMs are present.
 
+`tests/selftest.prg` (from `tools/make_selftest.py`) is the machine checking itself with no KERNAL code:
+PLA banking, keyboard matrix, CIA 1 timer A (and its timing), TOD, raster IRQ, sprite collisions,
+badline cycle stealing, SID OSC3 / ENV3 and a CIA 2 timer NMI, one line each on the screen. All pass on
+the desktop (bare: `c64_check --demo --prg tests\selftest.prg`; and RUN from BASIC) and on the Pico W
+(`tests/board/selftest.txt`, `docs/board-selftest.log`).
+
 ## Pico W
 
 Wiring is the LAFVIN kit's: LCD SCK GP2, MOSI GP3, CS GP5, DC GP6, RST GP7 (SPI0, 100 MHz); stick on
