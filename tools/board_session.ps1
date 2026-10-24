@@ -6,6 +6,8 @@ param(
     [Parameter(Mandatory)][string]$Script,
     [Parameter(Mandatory)][string]$Log,
     [string]$Store = '',
+    # flashed after the script, under the same lease: a silent program after a sound test
+    [string]$After = '',
     [string]$Port = 'COM7',
     [int]$Minutes = 6
 )
@@ -35,6 +37,12 @@ try {
     if ($p.ExitCode -ne 0) { Get-Content "$out.board.log" | Select-Object -Last 8; throw 'upload failed' }
     & py -3 (Join-Path $PSScriptRoot 'serial_script.py') --port $Port --script $scr --log $logf
     $rc = $LASTEXITCODE
+    if ($After) {
+        $af = Resolve-Any $After
+        $ao = Join-Path $root 'buildfter-silent.uf2'
+        $p = Start-Process -FilePath $pmf -ArgumentList ('--compile "' + $af + '" -S -o "' + $ao + '" --port ' + $Port) -WorkingDirectory (Split-Path $pmf -Parent) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput "$ao.board.log" -RedirectStandardError "$ao.stderr.log"
+        "silent program back rc=$($p.ExitCode)"
+    }
 } finally {
     Release-BoardLease $l
     'released'

@@ -1,0 +1,6 @@
+# The speaker: connect (up to 45 s), then the demo's music for about 20 s; status lines carry
+# bt_live, bt_under(runs) and bt_packets. Short on purpose (the speaker is in Ron's room).
+expect BT AUDIO rc= 60
+send \`d
+expect C64 mode=demo 5
+wait 20
