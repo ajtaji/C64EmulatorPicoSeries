@@ -105,8 +105,12 @@ def wr(addr, val, phase):
     return [f'  Pg = WrMap({addr} >> 8)',
             f'  If Pg : PokeA(Pg + {addr}, {val}) : Else : AccessPhase = {phase} : C64IoWrite({addr}, {val}) : EndIf']
 
+# An instruction's operand bytes are fetched on its cycles 1 and 2 (the opcode on cycle 0):
+# FETCH_PH counts them so an operand fetched from I/O sees its real cycle.
+FETCH_PH = [1]
 def fetch(dst):
-    return rd(dst, 'PC', 0) + ['  PC = (PC + 1) & $FFFF']
+    ph = FETCH_PH[0]; FETCH_PH[0] += 1
+    return rd(dst, 'PC', ph) + ['  PC = (PC + 1) & $FFFF']
 
 def zpwr(addr, val):
     return [f'  If {addr} < 2 : C64PortWrite({addr}, {val}) : Else : M({addr}) = {val} : EndIf']
@@ -233,6 +237,7 @@ def stop_if_irq():
 
 def body(code):
     mn, mode, cyc, pen = T[code]
+    FETCH_PH[0] = 1
     L = []
     if mn in ('ORA', 'AND', 'EOR'):
         o = {'ORA': '|', 'AND': '&', 'EOR': '!'}[mn]

@@ -106,7 +106,7 @@ Procedure Op00() ; $00 BRK imp
 EndProcedure
 Procedure Op01() ; $01 ORA izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -133,7 +133,7 @@ Procedure Op02() ; $02 JAM imp
 EndProcedure
 Procedure Op03() ; $03 SLO izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -159,7 +159,7 @@ Procedure Op03() ; $03 SLO izx
 EndProcedure
 Procedure Op04() ; $04 NOP zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Left = Left - 3
@@ -167,7 +167,7 @@ Procedure Op04() ; $04 NOP zp
 EndProcedure
 Procedure Op05() ; $05 ORA zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   A = A | Value
@@ -178,7 +178,7 @@ Procedure Op05() ; $05 ORA zp
 EndProcedure
 Procedure Op06() ; $06 ASL zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = Value << 1
@@ -192,7 +192,7 @@ Procedure Op06() ; $06 ASL zp
 EndProcedure
 Procedure Op07() ; $07 SLO zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = Value << 1
@@ -215,7 +215,7 @@ Procedure Op08() ; $08 PHP imp
 EndProcedure
 Procedure Op09() ; $09 ORA imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A | Value
   FN = A
@@ -236,7 +236,7 @@ Procedure Op0A() ; $0A ASL acc
 EndProcedure
 Procedure Op0B() ; $0B ANC imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A & Value
   FN = A
@@ -247,10 +247,10 @@ Procedure Op0B() ; $0B ANC imm
 EndProcedure
 Procedure Op0C() ; $0C NOP abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -260,10 +260,10 @@ Procedure Op0C() ; $0C NOP abs
 EndProcedure
 Procedure Op0D() ; $0D ORA abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -276,10 +276,10 @@ Procedure Op0D() ; $0D ORA abs
 EndProcedure
 Procedure Op0E() ; $0E ASL abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -301,10 +301,10 @@ Procedure Op0E() ; $0E ASL abs
 EndProcedure
 Procedure Op0F() ; $0F SLO abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -329,7 +329,7 @@ Procedure Op0F() ; $0F SLO abs
 EndProcedure
 Procedure Op10() ; $10 BPL rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FN & $80) = 0
     Base = PC
@@ -342,7 +342,7 @@ Procedure Op10() ; $10 BPL rel
 EndProcedure
 Procedure Op11() ; $11 ORA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -371,7 +371,7 @@ Procedure Op12() ; $12 JAM imp
 EndProcedure
 Procedure Op13() ; $13 SLO izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -398,7 +398,7 @@ Procedure Op13() ; $13 SLO izy
 EndProcedure
 Procedure Op14() ; $14 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -407,7 +407,7 @@ Procedure Op14() ; $14 NOP zpx
 EndProcedure
 Procedure Op15() ; $15 ORA zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -419,7 +419,7 @@ Procedure Op15() ; $15 ORA zpx
 EndProcedure
 Procedure Op16() ; $16 ASL zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -434,7 +434,7 @@ Procedure Op16() ; $16 ASL zpx
 EndProcedure
 Procedure Op17() ; $17 SLO zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -457,10 +457,10 @@ Procedure Op18() ; $18 CLC imp
 EndProcedure
 Procedure Op19() ; $19 ORA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -480,10 +480,10 @@ Procedure Op1A() ; $1A NOP imp
 EndProcedure
 Procedure Op1B() ; $1B SLO aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -510,10 +510,10 @@ Procedure Op1B() ; $1B SLO aby
 EndProcedure
 Procedure Op1C() ; $1C NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -526,10 +526,10 @@ Procedure Op1C() ; $1C NOP abx
 EndProcedure
 Procedure Op1D() ; $1D ORA abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -545,10 +545,10 @@ Procedure Op1D() ; $1D ORA abx
 EndProcedure
 Procedure Op1E() ; $1E ASL abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -572,10 +572,10 @@ Procedure Op1E() ; $1E ASL abx
 EndProcedure
 Procedure Op1F() ; $1F SLO abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -602,7 +602,7 @@ Procedure Op1F() ; $1F SLO abx
 EndProcedure
 Procedure Op20() ; $20 JSR abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   CpuPush(PC >> 8)
   CpuPush(PC & 255)
@@ -614,7 +614,7 @@ Procedure Op20() ; $20 JSR abs
 EndProcedure
 Procedure Op21() ; $21 AND izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -641,7 +641,7 @@ Procedure Op22() ; $22 JAM imp
 EndProcedure
 Procedure Op23() ; $23 RLA izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -667,7 +667,7 @@ Procedure Op23() ; $23 RLA izx
 EndProcedure
 Procedure Op24() ; $24 BIT zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   FN = Value
@@ -678,7 +678,7 @@ Procedure Op24() ; $24 BIT zp
 EndProcedure
 Procedure Op25() ; $25 AND zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   A = A & Value
@@ -689,7 +689,7 @@ Procedure Op25() ; $25 AND zp
 EndProcedure
 Procedure Op26() ; $26 ROL zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value << 1) | ((FC >> 8) & 1)
@@ -703,7 +703,7 @@ Procedure Op26() ; $26 ROL zp
 EndProcedure
 Procedure Op27() ; $27 RLA zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value << 1) | ((FC >> 8) & 1)
@@ -728,7 +728,7 @@ Procedure Op28() ; $28 PLP imp
 EndProcedure
 Procedure Op29() ; $29 AND imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A & Value
   FN = A
@@ -749,7 +749,7 @@ Procedure Op2A() ; $2A ROL acc
 EndProcedure
 Procedure Op2B() ; $2B ANC imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A & Value
   FN = A
@@ -760,10 +760,10 @@ Procedure Op2B() ; $2B ANC imm
 EndProcedure
 Procedure Op2C() ; $2C BIT abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -776,10 +776,10 @@ Procedure Op2C() ; $2C BIT abs
 EndProcedure
 Procedure Op2D() ; $2D AND abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -792,10 +792,10 @@ Procedure Op2D() ; $2D AND abs
 EndProcedure
 Procedure Op2E() ; $2E ROL abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -817,10 +817,10 @@ Procedure Op2E() ; $2E ROL abs
 EndProcedure
 Procedure Op2F() ; $2F RLA abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -845,7 +845,7 @@ Procedure Op2F() ; $2F RLA abs
 EndProcedure
 Procedure Op30() ; $30 BMI rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FN & $80) <> 0
     Base = PC
@@ -858,7 +858,7 @@ Procedure Op30() ; $30 BMI rel
 EndProcedure
 Procedure Op31() ; $31 AND izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -887,7 +887,7 @@ Procedure Op32() ; $32 JAM imp
 EndProcedure
 Procedure Op33() ; $33 RLA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -914,7 +914,7 @@ Procedure Op33() ; $33 RLA izy
 EndProcedure
 Procedure Op34() ; $34 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -923,7 +923,7 @@ Procedure Op34() ; $34 NOP zpx
 EndProcedure
 Procedure Op35() ; $35 AND zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -935,7 +935,7 @@ Procedure Op35() ; $35 AND zpx
 EndProcedure
 Procedure Op36() ; $36 ROL zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -950,7 +950,7 @@ Procedure Op36() ; $36 ROL zpx
 EndProcedure
 Procedure Op37() ; $37 RLA zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -973,10 +973,10 @@ Procedure Op38() ; $38 SEC imp
 EndProcedure
 Procedure Op39() ; $39 AND aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -996,10 +996,10 @@ Procedure Op3A() ; $3A NOP imp
 EndProcedure
 Procedure Op3B() ; $3B RLA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1026,10 +1026,10 @@ Procedure Op3B() ; $3B RLA aby
 EndProcedure
 Procedure Op3C() ; $3C NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1042,10 +1042,10 @@ Procedure Op3C() ; $3C NOP abx
 EndProcedure
 Procedure Op3D() ; $3D AND abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1061,10 +1061,10 @@ Procedure Op3D() ; $3D AND abx
 EndProcedure
 Procedure Op3E() ; $3E ROL abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1088,10 +1088,10 @@ Procedure Op3E() ; $3E ROL abx
 EndProcedure
 Procedure Op3F() ; $3F RLA abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1128,7 +1128,7 @@ Procedure Op40() ; $40 RTI imp
 EndProcedure
 Procedure Op41() ; $41 EOR izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -1155,7 +1155,7 @@ Procedure Op42() ; $42 JAM imp
 EndProcedure
 Procedure Op43() ; $43 SRE izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -1180,7 +1180,7 @@ Procedure Op43() ; $43 SRE izx
 EndProcedure
 Procedure Op44() ; $44 NOP zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Left = Left - 3
@@ -1188,7 +1188,7 @@ Procedure Op44() ; $44 NOP zp
 EndProcedure
 Procedure Op45() ; $45 EOR zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   A = A ! Value
@@ -1199,7 +1199,7 @@ Procedure Op45() ; $45 EOR zp
 EndProcedure
 Procedure Op46() ; $46 LSR zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   FC = (Value & 1) << 8
@@ -1212,7 +1212,7 @@ Procedure Op46() ; $46 LSR zp
 EndProcedure
 Procedure Op47() ; $47 SRE zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   FC = (Value & 1) << 8
@@ -1233,7 +1233,7 @@ Procedure Op48() ; $48 PHA imp
 EndProcedure
 Procedure Op49() ; $49 EOR imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A ! Value
   FN = A
@@ -1253,7 +1253,7 @@ Procedure Op4A() ; $4A LSR acc
 EndProcedure
 Procedure Op4B() ; $4B ALR imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = A & Value
   FC = (A & 1) << 8
@@ -1265,10 +1265,10 @@ Procedure Op4B() ; $4B ALR imm
 EndProcedure
 Procedure Op4C() ; $4C JMP abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   PC = Lo | (Hi << 8)
   Left = Left - 3
@@ -1276,10 +1276,10 @@ Procedure Op4C() ; $4C JMP abs
 EndProcedure
 Procedure Op4D() ; $4D EOR abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1292,10 +1292,10 @@ Procedure Op4D() ; $4D EOR abs
 EndProcedure
 Procedure Op4E() ; $4E LSR abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1316,10 +1316,10 @@ Procedure Op4E() ; $4E LSR abs
 EndProcedure
 Procedure Op4F() ; $4F SRE abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1343,7 +1343,7 @@ Procedure Op4F() ; $4F SRE abs
 EndProcedure
 Procedure Op50() ; $50 BVC rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FV & $80) = 0
     Base = PC
@@ -1356,7 +1356,7 @@ Procedure Op50() ; $50 BVC rel
 EndProcedure
 Procedure Op51() ; $51 EOR izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -1385,7 +1385,7 @@ Procedure Op52() ; $52 JAM imp
 EndProcedure
 Procedure Op53() ; $53 SRE izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -1411,7 +1411,7 @@ Procedure Op53() ; $53 SRE izy
 EndProcedure
 Procedure Op54() ; $54 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -1420,7 +1420,7 @@ Procedure Op54() ; $54 NOP zpx
 EndProcedure
 Procedure Op55() ; $55 EOR zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -1432,7 +1432,7 @@ Procedure Op55() ; $55 EOR zpx
 EndProcedure
 Procedure Op56() ; $56 LSR zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -1446,7 +1446,7 @@ Procedure Op56() ; $56 LSR zpx
 EndProcedure
 Procedure Op57() ; $57 SRE zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -1470,10 +1470,10 @@ Procedure Op58() ; $58 CLI imp
 EndProcedure
 Procedure Op59() ; $59 EOR aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1493,10 +1493,10 @@ Procedure Op5A() ; $5A NOP imp
 EndProcedure
 Procedure Op5B() ; $5B SRE aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1522,10 +1522,10 @@ Procedure Op5B() ; $5B SRE aby
 EndProcedure
 Procedure Op5C() ; $5C NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1538,10 +1538,10 @@ Procedure Op5C() ; $5C NOP abx
 EndProcedure
 Procedure Op5D() ; $5D EOR abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1557,10 +1557,10 @@ Procedure Op5D() ; $5D EOR abx
 EndProcedure
 Procedure Op5E() ; $5E LSR abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1583,10 +1583,10 @@ Procedure Op5E() ; $5E LSR abx
 EndProcedure
 Procedure Op5F() ; $5F SRE abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -1619,7 +1619,7 @@ Procedure Op60() ; $60 RTS imp
 EndProcedure
 Procedure Op61() ; $61 ADC izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -1662,7 +1662,7 @@ Procedure Op62() ; $62 JAM imp
 EndProcedure
 Procedure Op63() ; $63 RRA izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -1704,7 +1704,7 @@ Procedure Op63() ; $63 RRA izx
 EndProcedure
 Procedure Op64() ; $64 NOP zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Left = Left - 3
@@ -1712,7 +1712,7 @@ Procedure Op64() ; $64 NOP zp
 EndProcedure
 Procedure Op65() ; $65 ADC zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = A + Value + ((FC >> 8) & 1)
@@ -1739,7 +1739,7 @@ Procedure Op65() ; $65 ADC zp
 EndProcedure
 Procedure Op66() ; $66 ROR zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value >> 1) | ((FC >> 1) & $80)
@@ -1752,7 +1752,7 @@ Procedure Op66() ; $66 ROR zp
 EndProcedure
 Procedure Op67() ; $67 RRA zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value >> 1) | ((FC >> 1) & $80)
@@ -1792,7 +1792,7 @@ Procedure Op68() ; $68 PLA imp
 EndProcedure
 Procedure Op69() ; $69 ADC imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Res = A + Value + ((FC >> 8) & 1)
   If FD
@@ -1828,7 +1828,7 @@ Procedure Op6A() ; $6A ROR acc
 EndProcedure
 Procedure Op6B() ; $6B ARR imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = A & Value
   Res = (Tmp >> 1) | ((FC >> 1) & $80)
@@ -1856,10 +1856,10 @@ Procedure Op6B() ; $6B ARR imm
 EndProcedure
 Procedure Op6C() ; $6C JMP ind
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1873,10 +1873,10 @@ Procedure Op6C() ; $6C JMP ind
 EndProcedure
 Procedure Op6D() ; $6D ADC abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1905,10 +1905,10 @@ Procedure Op6D() ; $6D ADC abs
 EndProcedure
 Procedure Op6E() ; $6E ROR abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1929,10 +1929,10 @@ Procedure Op6E() ; $6E ROR abs
 EndProcedure
 Procedure Op6F() ; $6F RRA abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -1973,7 +1973,7 @@ Procedure Op6F() ; $6F RRA abs
 EndProcedure
 Procedure Op70() ; $70 BVS rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FV & $80) <> 0
     Base = PC
@@ -1986,7 +1986,7 @@ Procedure Op70() ; $70 BVS rel
 EndProcedure
 Procedure Op71() ; $71 ADC izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2031,7 +2031,7 @@ Procedure Op72() ; $72 JAM imp
 EndProcedure
 Procedure Op73() ; $73 RRA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2074,7 +2074,7 @@ Procedure Op73() ; $73 RRA izy
 EndProcedure
 Procedure Op74() ; $74 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2083,7 +2083,7 @@ Procedure Op74() ; $74 NOP zpx
 EndProcedure
 Procedure Op75() ; $75 ADC zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2111,7 +2111,7 @@ Procedure Op75() ; $75 ADC zpx
 EndProcedure
 Procedure Op76() ; $76 ROR zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2125,7 +2125,7 @@ Procedure Op76() ; $76 ROR zpx
 EndProcedure
 Procedure Op77() ; $77 RRA zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2165,10 +2165,10 @@ Procedure Op78() ; $78 SEI imp
 EndProcedure
 Procedure Op79() ; $79 ADC aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2204,10 +2204,10 @@ Procedure Op7A() ; $7A NOP imp
 EndProcedure
 Procedure Op7B() ; $7B RRA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2250,10 +2250,10 @@ Procedure Op7B() ; $7B RRA aby
 EndProcedure
 Procedure Op7C() ; $7C NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2266,10 +2266,10 @@ Procedure Op7C() ; $7C NOP abx
 EndProcedure
 Procedure Op7D() ; $7D ADC abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2301,10 +2301,10 @@ Procedure Op7D() ; $7D ADC abx
 EndProcedure
 Procedure Op7E() ; $7E ROR abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2327,10 +2327,10 @@ Procedure Op7E() ; $7E ROR abx
 EndProcedure
 Procedure Op7F() ; $7F RRA abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2378,7 +2378,7 @@ Procedure Op80() ; $80 NOP imm
 EndProcedure
 Procedure Op81() ; $81 STA izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -2395,7 +2395,7 @@ EndProcedure
 Procedure Op83() ; $83 SAX izx
   Res = A & X
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -2406,7 +2406,7 @@ Procedure Op83() ; $83 SAX izx
 EndProcedure
 Procedure Op84() ; $84 STY zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If Ea < 2 : C64PortWrite(Ea, Y) : Else : M(Ea) = Y : EndIf
   Left = Left - 3
@@ -2414,7 +2414,7 @@ Procedure Op84() ; $84 STY zp
 EndProcedure
 Procedure Op85() ; $85 STA zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If Ea < 2 : C64PortWrite(Ea, A) : Else : M(Ea) = A : EndIf
   Left = Left - 3
@@ -2422,7 +2422,7 @@ Procedure Op85() ; $85 STA zp
 EndProcedure
 Procedure Op86() ; $86 STX zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If Ea < 2 : C64PortWrite(Ea, X) : Else : M(Ea) = X : EndIf
   Left = Left - 3
@@ -2431,7 +2431,7 @@ EndProcedure
 Procedure Op87() ; $87 SAX zp
   Res = A & X
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If Ea < 2 : C64PortWrite(Ea, Res) : Else : M(Ea) = Res : EndIf
   Left = Left - 3
@@ -2458,7 +2458,7 @@ Procedure Op8A() ; $8A TXA imp
 EndProcedure
 Procedure Op8B() ; $8B ANE imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = (A | $EE) & X & Value
   FN = A
@@ -2468,10 +2468,10 @@ Procedure Op8B() ; $8B ANE imm
 EndProcedure
 Procedure Op8C() ; $8C STY abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = WrMap(Ea >> 8)
@@ -2481,10 +2481,10 @@ Procedure Op8C() ; $8C STY abs
 EndProcedure
 Procedure Op8D() ; $8D STA abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = WrMap(Ea >> 8)
@@ -2494,10 +2494,10 @@ Procedure Op8D() ; $8D STA abs
 EndProcedure
 Procedure Op8E() ; $8E STX abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = WrMap(Ea >> 8)
@@ -2508,10 +2508,10 @@ EndProcedure
 Procedure Op8F() ; $8F SAX abs
   Res = A & X
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = WrMap(Ea >> 8)
@@ -2521,7 +2521,7 @@ Procedure Op8F() ; $8F SAX abs
 EndProcedure
 Procedure Op90() ; $90 BCC rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FC & $100) = 0
     Base = PC
@@ -2534,7 +2534,7 @@ Procedure Op90() ; $90 BCC rel
 EndProcedure
 Procedure Op91() ; $91 STA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2559,7 +2559,7 @@ Procedure Op92() ; $92 JAM imp
 EndProcedure
 Procedure Op93() ; $93 SHA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2573,7 +2573,7 @@ Procedure Op93() ; $93 SHA izy
 EndProcedure
 Procedure Op94() ; $94 STY zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   If Ea < 2 : C64PortWrite(Ea, Y) : Else : M(Ea) = Y : EndIf
@@ -2582,7 +2582,7 @@ Procedure Op94() ; $94 STY zpx
 EndProcedure
 Procedure Op95() ; $95 STA zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   If Ea < 2 : C64PortWrite(Ea, A) : Else : M(Ea) = A : EndIf
@@ -2591,7 +2591,7 @@ Procedure Op95() ; $95 STA zpx
 EndProcedure
 Procedure Op96() ; $96 STX zpy
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + Y) & 255
   If Ea < 2 : C64PortWrite(Ea, X) : Else : M(Ea) = X : EndIf
@@ -2601,7 +2601,7 @@ EndProcedure
 Procedure Op97() ; $97 SAX zpy
   Res = A & X
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + Y) & 255
   If Ea < 2 : C64PortWrite(Ea, Res) : Else : M(Ea) = Res : EndIf
@@ -2617,10 +2617,10 @@ Procedure Op98() ; $98 TYA imp
 EndProcedure
 Procedure Op99() ; $99 STA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2637,10 +2637,10 @@ Procedure Op9A() ; $9A TXS imp
 EndProcedure
 Procedure Op9B() ; $9B TAS aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2655,10 +2655,10 @@ Procedure Op9B() ; $9B TAS aby
 EndProcedure
 Procedure Op9C() ; $9C SHY abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2672,10 +2672,10 @@ Procedure Op9C() ; $9C SHY abx
 EndProcedure
 Procedure Op9D() ; $9D STA abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2687,10 +2687,10 @@ Procedure Op9D() ; $9D STA abx
 EndProcedure
 Procedure Op9E() ; $9E SHX aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2704,10 +2704,10 @@ Procedure Op9E() ; $9E SHX aby
 EndProcedure
 Procedure Op9F() ; $9F SHA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -2721,7 +2721,7 @@ Procedure Op9F() ; $9F SHA aby
 EndProcedure
 Procedure OpA0() ; $A0 LDY imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Y = Value
   FN = Y
@@ -2731,7 +2731,7 @@ Procedure OpA0() ; $A0 LDY imm
 EndProcedure
 Procedure OpA1() ; $A1 LDA izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -2745,7 +2745,7 @@ Procedure OpA1() ; $A1 LDA izx
 EndProcedure
 Procedure OpA2() ; $A2 LDX imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   X = Value
   FN = X
@@ -2755,7 +2755,7 @@ Procedure OpA2() ; $A2 LDX imm
 EndProcedure
 Procedure OpA3() ; $A3 LAX izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -2770,7 +2770,7 @@ Procedure OpA3() ; $A3 LAX izx
 EndProcedure
 Procedure OpA4() ; $A4 LDY zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Y = Value
@@ -2781,7 +2781,7 @@ Procedure OpA4() ; $A4 LDY zp
 EndProcedure
 Procedure OpA5() ; $A5 LDA zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   A = Value
@@ -2792,7 +2792,7 @@ Procedure OpA5() ; $A5 LDA zp
 EndProcedure
 Procedure OpA6() ; $A6 LDX zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   X = Value
@@ -2803,7 +2803,7 @@ Procedure OpA6() ; $A6 LDX zp
 EndProcedure
 Procedure OpA7() ; $A7 LAX zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   A = Value
@@ -2822,7 +2822,7 @@ Procedure OpA8() ; $A8 TAY imp
 EndProcedure
 Procedure OpA9() ; $A9 LDA imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = Value
   FN = A
@@ -2839,7 +2839,7 @@ Procedure OpAA() ; $AA TAX imp
 EndProcedure
 Procedure OpAB() ; $AB LXA imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   A = (A | $EE) & Value
   X = A
@@ -2850,10 +2850,10 @@ Procedure OpAB() ; $AB LXA imm
 EndProcedure
 Procedure OpAC() ; $AC LDY abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -2866,10 +2866,10 @@ Procedure OpAC() ; $AC LDY abs
 EndProcedure
 Procedure OpAD() ; $AD LDA abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -2882,10 +2882,10 @@ Procedure OpAD() ; $AD LDA abs
 EndProcedure
 Procedure OpAE() ; $AE LDX abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -2898,10 +2898,10 @@ Procedure OpAE() ; $AE LDX abs
 EndProcedure
 Procedure OpAF() ; $AF LAX abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -2915,7 +2915,7 @@ Procedure OpAF() ; $AF LAX abs
 EndProcedure
 Procedure OpB0() ; $B0 BCS rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FC & $100) <> 0
     Base = PC
@@ -2928,7 +2928,7 @@ Procedure OpB0() ; $B0 BCS rel
 EndProcedure
 Procedure OpB1() ; $B1 LDA izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2957,7 +2957,7 @@ Procedure OpB2() ; $B2 JAM imp
 EndProcedure
 Procedure OpB3() ; $B3 LAX izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -2974,7 +2974,7 @@ Procedure OpB3() ; $B3 LAX izy
 EndProcedure
 Procedure OpB4() ; $B4 LDY zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2986,7 +2986,7 @@ Procedure OpB4() ; $B4 LDY zpx
 EndProcedure
 Procedure OpB5() ; $B5 LDA zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -2998,7 +2998,7 @@ Procedure OpB5() ; $B5 LDA zpx
 EndProcedure
 Procedure OpB6() ; $B6 LDX zpy
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + Y) & 255
   Value = M(Ea)
@@ -3010,7 +3010,7 @@ Procedure OpB6() ; $B6 LDX zpy
 EndProcedure
 Procedure OpB7() ; $B7 LAX zpy
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + Y) & 255
   Value = M(Ea)
@@ -3028,10 +3028,10 @@ Procedure OpB8() ; $B8 CLV imp
 EndProcedure
 Procedure OpB9() ; $B9 LDA aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3054,10 +3054,10 @@ Procedure OpBA() ; $BA TSX imp
 EndProcedure
 Procedure OpBB() ; $BB LAS aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3075,10 +3075,10 @@ Procedure OpBB() ; $BB LAS aby
 EndProcedure
 Procedure OpBC() ; $BC LDY abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3094,10 +3094,10 @@ Procedure OpBC() ; $BC LDY abx
 EndProcedure
 Procedure OpBD() ; $BD LDA abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3113,10 +3113,10 @@ Procedure OpBD() ; $BD LDA abx
 EndProcedure
 Procedure OpBE() ; $BE LDX aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3132,10 +3132,10 @@ Procedure OpBE() ; $BE LDX aby
 EndProcedure
 Procedure OpBF() ; $BF LAX aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3152,7 +3152,7 @@ Procedure OpBF() ; $BF LAX aby
 EndProcedure
 Procedure OpC0() ; $C0 CPY imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Res = Y - Value
   FC = ~Res
@@ -3163,7 +3163,7 @@ Procedure OpC0() ; $C0 CPY imm
 EndProcedure
 Procedure OpC1() ; $C1 CMP izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -3183,7 +3183,7 @@ Procedure OpC2() ; $C2 NOP imm
 EndProcedure
 Procedure OpC3() ; $C3 DCP izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -3207,7 +3207,7 @@ Procedure OpC3() ; $C3 DCP izx
 EndProcedure
 Procedure OpC4() ; $C4 CPY zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = Y - Value
@@ -3219,7 +3219,7 @@ Procedure OpC4() ; $C4 CPY zp
 EndProcedure
 Procedure OpC5() ; $C5 CMP zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = A - Value
@@ -3231,7 +3231,7 @@ Procedure OpC5() ; $C5 CMP zp
 EndProcedure
 Procedure OpC6() ; $C6 DEC zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value - 1) & 255
@@ -3243,7 +3243,7 @@ Procedure OpC6() ; $C6 DEC zp
 EndProcedure
 Procedure OpC7() ; $C7 DCP zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value - 1) & 255
@@ -3265,7 +3265,7 @@ Procedure OpC8() ; $C8 INY imp
 EndProcedure
 Procedure OpC9() ; $C9 CMP imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Res = A - Value
   FC = ~Res
@@ -3283,7 +3283,7 @@ Procedure OpCA() ; $CA DEX imp
 EndProcedure
 Procedure OpCB() ; $CB SBX imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Res = (A & X) - Value
   FC = ~Res
@@ -3295,10 +3295,10 @@ Procedure OpCB() ; $CB SBX imm
 EndProcedure
 Procedure OpCC() ; $CC CPY abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3312,10 +3312,10 @@ Procedure OpCC() ; $CC CPY abs
 EndProcedure
 Procedure OpCD() ; $CD CMP abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3329,10 +3329,10 @@ Procedure OpCD() ; $CD CMP abs
 EndProcedure
 Procedure OpCE() ; $CE DEC abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3352,10 +3352,10 @@ Procedure OpCE() ; $CE DEC abs
 EndProcedure
 Procedure OpCF() ; $CF DCP abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3378,7 +3378,7 @@ Procedure OpCF() ; $CF DCP abs
 EndProcedure
 Procedure OpD0() ; $D0 BNE rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FZ & 255) <> 0
     Base = PC
@@ -3391,7 +3391,7 @@ Procedure OpD0() ; $D0 BNE rel
 EndProcedure
 Procedure OpD1() ; $D1 CMP izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -3421,7 +3421,7 @@ Procedure OpD2() ; $D2 JAM imp
 EndProcedure
 Procedure OpD3() ; $D3 DCP izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -3446,7 +3446,7 @@ Procedure OpD3() ; $D3 DCP izy
 EndProcedure
 Procedure OpD4() ; $D4 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -3455,7 +3455,7 @@ Procedure OpD4() ; $D4 NOP zpx
 EndProcedure
 Procedure OpD5() ; $D5 CMP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -3468,7 +3468,7 @@ Procedure OpD5() ; $D5 CMP zpx
 EndProcedure
 Procedure OpD6() ; $D6 DEC zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -3481,7 +3481,7 @@ Procedure OpD6() ; $D6 DEC zpx
 EndProcedure
 Procedure OpD7() ; $D7 DCP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -3502,10 +3502,10 @@ Procedure OpD8() ; $D8 CLD imp
 EndProcedure
 Procedure OpD9() ; $D9 CMP aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3526,10 +3526,10 @@ Procedure OpDA() ; $DA NOP imp
 EndProcedure
 Procedure OpDB() ; $DB DCP aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3554,10 +3554,10 @@ Procedure OpDB() ; $DB DCP aby
 EndProcedure
 Procedure OpDC() ; $DC NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3570,10 +3570,10 @@ Procedure OpDC() ; $DC NOP abx
 EndProcedure
 Procedure OpDD() ; $DD CMP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3590,10 +3590,10 @@ Procedure OpDD() ; $DD CMP abx
 EndProcedure
 Procedure OpDE() ; $DE DEC abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3615,10 +3615,10 @@ Procedure OpDE() ; $DE DEC abx
 EndProcedure
 Procedure OpDF() ; $DF DCP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -3643,7 +3643,7 @@ Procedure OpDF() ; $DF DCP abx
 EndProcedure
 Procedure OpE0() ; $E0 CPX imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Res = X - Value
   FC = ~Res
@@ -3654,7 +3654,7 @@ Procedure OpE0() ; $E0 CPX imm
 EndProcedure
 Procedure OpE1() ; $E1 SBC izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -3686,7 +3686,7 @@ Procedure OpE2() ; $E2 NOP imm
 EndProcedure
 Procedure OpE3() ; $E3 ISC izx
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = (Tmp + X) & 255
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
@@ -3722,7 +3722,7 @@ Procedure OpE3() ; $E3 ISC izx
 EndProcedure
 Procedure OpE4() ; $E4 CPX zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = X - Value
@@ -3734,7 +3734,7 @@ Procedure OpE4() ; $E4 CPX zp
 EndProcedure
 Procedure OpE5() ; $E5 SBC zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Tmp = ((FC >> 8) & 1) ! 1
@@ -3758,7 +3758,7 @@ Procedure OpE5() ; $E5 SBC zp
 EndProcedure
 Procedure OpE6() ; $E6 INC zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value + 1) & 255
@@ -3770,7 +3770,7 @@ Procedure OpE6() ; $E6 INC zp
 EndProcedure
 Procedure OpE7() ; $E7 ISC zp
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Value = M(Ea)
   Res = (Value + 1) & 255
@@ -3804,7 +3804,7 @@ Procedure OpE8() ; $E8 INX imp
 EndProcedure
 Procedure OpE9() ; $E9 SBC imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = ((FC >> 8) & 1) ! 1
   Res = A - Value - Tmp
@@ -3831,7 +3831,7 @@ Procedure OpEA() ; $EA NOP imp
 EndProcedure
 Procedure OpEB() ; $EB SBC imm
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Tmp = ((FC >> 8) & 1) ! 1
   Res = A - Value - Tmp
@@ -3854,10 +3854,10 @@ Procedure OpEB() ; $EB SBC imm
 EndProcedure
 Procedure OpEC() ; $EC CPX abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3871,10 +3871,10 @@ Procedure OpEC() ; $EC CPX abs
 EndProcedure
 Procedure OpED() ; $ED SBC abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3900,10 +3900,10 @@ Procedure OpED() ; $ED SBC abs
 EndProcedure
 Procedure OpEE() ; $EE INC abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3923,10 +3923,10 @@ Procedure OpEE() ; $EE INC abs
 EndProcedure
 Procedure OpEF() ; $EF ISC abs
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Pg = RdMap(Ea >> 8)
@@ -3961,7 +3961,7 @@ Procedure OpEF() ; $EF ISC abs
 EndProcedure
 Procedure OpF0() ; $F0 BEQ rel
   Pg = RdMap(PC >> 8)
-  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 0 : Value = C64IoRead(PC) : EndIf
+  If Pg : Value = PeekA(Pg + PC) : Else : AccessPhase = 1 : Value = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   If (FZ & 255) = 0
     Base = PC
@@ -3974,7 +3974,7 @@ Procedure OpF0() ; $F0 BEQ rel
 EndProcedure
 Procedure OpF1() ; $F1 SBC izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -4016,7 +4016,7 @@ Procedure OpF2() ; $F2 JAM imp
 EndProcedure
 Procedure OpF3() ; $F3 ISC izy
   Pg = RdMap(PC >> 8)
-  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 0 : Tmp = C64IoRead(PC) : EndIf
+  If Pg : Tmp = PeekA(Pg + PC) : Else : AccessPhase = 1 : Tmp = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = M(Tmp) | (M((Tmp + 1) & 255) << 8)
   Base = Ea
@@ -4053,7 +4053,7 @@ Procedure OpF3() ; $F3 ISC izy
 EndProcedure
 Procedure OpF4() ; $F4 NOP zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -4062,7 +4062,7 @@ Procedure OpF4() ; $F4 NOP zpx
 EndProcedure
 Procedure OpF5() ; $F5 SBC zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -4087,7 +4087,7 @@ Procedure OpF5() ; $F5 SBC zpx
 EndProcedure
 Procedure OpF6() ; $F6 INC zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -4100,7 +4100,7 @@ Procedure OpF6() ; $F6 INC zpx
 EndProcedure
 Procedure OpF7() ; $F7 ISC zpx
   Pg = RdMap(PC >> 8)
-  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 0 : Ea = C64IoRead(PC) : EndIf
+  If Pg : Ea = PeekA(Pg + PC) : Else : AccessPhase = 1 : Ea = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = (Ea + X) & 255
   Value = M(Ea)
@@ -4133,10 +4133,10 @@ Procedure OpF8() ; $F8 SED imp
 EndProcedure
 Procedure OpF9() ; $F9 SBC aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -4169,10 +4169,10 @@ Procedure OpFA() ; $FA NOP imp
 EndProcedure
 Procedure OpFB() ; $FB ISC aby
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -4209,10 +4209,10 @@ Procedure OpFB() ; $FB ISC aby
 EndProcedure
 Procedure OpFC() ; $FC NOP abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -4225,10 +4225,10 @@ Procedure OpFC() ; $FC NOP abx
 EndProcedure
 Procedure OpFD() ; $FD SBC abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -4257,10 +4257,10 @@ Procedure OpFD() ; $FD SBC abx
 EndProcedure
 Procedure OpFE() ; $FE INC abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
@@ -4282,10 +4282,10 @@ Procedure OpFE() ; $FE INC abx
 EndProcedure
 Procedure OpFF() ; $FF ISC abx
   Pg = RdMap(PC >> 8)
-  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 0 : Lo = C64IoRead(PC) : EndIf
+  If Pg : Lo = PeekA(Pg + PC) : Else : AccessPhase = 1 : Lo = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Pg = RdMap(PC >> 8)
-  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 0 : Hi = C64IoRead(PC) : EndIf
+  If Pg : Hi = PeekA(Pg + PC) : Else : AccessPhase = 2 : Hi = C64IoRead(PC) : EndIf
   PC = (PC + 1) & $FFFF
   Ea = Lo | (Hi << 8)
   Base = Ea
