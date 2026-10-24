@@ -41,6 +41,8 @@ Global Dim TmLoadAt.i(4)
 Global Dim TmSkip.i(4)
 Global Dim TmUf.i(4)
 Global Dim TmUfCount.i(4)
+; the toggle flip-flop of each timer's PB6 / PB7 output
+Global Dim TmToggle.i(4)
 ; when each unit's interrupt condition (ICR flags AND mask) last became true
 Global Dim CiaCondSince.i(2)
 ; The keyboard: KeyRows(column) has a bit set for each pressed key's row.
@@ -95,6 +97,7 @@ Procedure TmUnderflow(k.i, at.i, many.i)
   Protected u.i
   u = k >> 1
   TmUf(k) = at : TmUfCount(k) = TmUfCount(k) + many
+  If many & 1 : TmToggle(k) = 1 - TmToggle(k) : EndIf
   If (CiaIcr(u) & CiaMask(u) & $1F) = 0 And (CiaMask(u) & (1 + (k & 1))) : CiaCondSince(u) = at : EndIf
   CiaIcr(u) = CiaIcr(u) | (1 + (k & 1))
 EndProcedure
@@ -249,7 +252,7 @@ Procedure CiaReset()
   Next
   For k = 0 To 3
     TmCount(k) = $FFFF : TmLatch(k) = $FFFF : TmRun(k) = 0 : TmStamp(k) = C64Clock
-    TmRunPend(k) = 0 : TmLoadPend(k) = 0 : TmSkip(k) = C64Clock : TmUf(k) = C64Clock : TmUfCount(k) = 0
+    TmRunPend(k) = 0 : TmLoadPend(k) = 0 : TmSkip(k) = C64Clock : TmUf(k) = C64Clock - 100 : TmUfCount(k) = 0 : TmToggle(k) = 1
   Next
   For i = 0 To 7 : KeyRows(i) = 0 : Next
   Joy1 = 0 : Joy2 = 0
@@ -348,6 +351,24 @@ Procedure CiaFrameTick()
   CiaPlan(C64Clock)
 EndProcedure
 
+; Port B with the timers' outputs: CRA / CRB bit 1 puts timer A on PB6 / timer B on PB7,
+; bit 2 chooses toggle (the flip-flop) or pulse (high for the underflow's cycle).
+Procedure.i CiaTimerPb(unit.i, v.i, now.i)
+  Protected k.i, cr.i, bit.i, lvl.i
+  For k = unit * 2 To unit * 2 + 1
+    If k & 1 : cr = CiaCrb(unit) : bit = $80 : Else : cr = CiaCra(unit) : bit = $40 : EndIf
+    If cr & 2
+      If cr & 4
+        lvl = TmToggle(k)
+      Else
+        lvl = Bool(now = TmUf(k))
+      EndIf
+      If lvl : v = v | bit : Else : v = v & (~bit) : EndIf
+    EndIf
+  Next
+  ProcedureReturn v & 255
+EndProcedure
+
 Procedure.i CiaRead(unit.i, reg.i, now.i)
   Protected v.i, b.i
   CiaSync(unit, now)
@@ -363,8 +384,8 @@ Procedure.i CiaRead(unit.i, reg.i, now.i)
     ProcedureReturn v & 255
   EndIf
   If reg = 1
-    If unit = 0 : ProcedureReturn CiaKeyPortB() : EndIf
-    ProcedureReturn (CiaPrb(1) | (~CiaDdrb(1))) & 255
+    If unit = 0 : ProcedureReturn CiaTimerPb(0, CiaKeyPortB(), now) : EndIf
+    ProcedureReturn CiaTimerPb(1, (CiaPrb(1) | (~CiaDdrb(1))) & 255, now)
   EndIf
   If reg = 2 : ProcedureReturn CiaDdra(unit) : EndIf
   If reg = 3 : ProcedureReturn CiaDdrb(unit) : EndIf
@@ -404,6 +425,8 @@ EndProcedure
 ; A control register write at clock now for timer k: start / stop and force load
 ; through the chip's pipeline.
 Procedure TmControl(k.i, old.i, v.i, now.i)
+  ; a rising START sets the PB6 / PB7 toggle output high
+  If (v & 1) <> 0 And (old & 1) = 0 : TmToggle(k) = 1 : EndIf
   If (v & 1) <> (old & 1)
     TmRunPend(k) = 1 : TmRunAt(k) = now + 2 : TmRunNew(k) = v & 1
   EndIf
