@@ -396,6 +396,30 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
     VicCellsTail(gp, sh, cy)
     ProcedureReturn
   EndIf
+  ; standard text with no table this line: the colour word computed a cell
+  If mode = 0 And VicDisplay
+    b = bg0 * $01010101
+    For i = 0 To 39
+      g = PeekA(chp + (VmLine(i) << 3))
+      If g
+        f = (ColLine(i) | 16) * $01010101
+        m = Mask4(g >> 4)
+        w0 = (m & f) | ((~m) & b)
+        m = Mask4(g & 15)
+        w1 = (m & f) | ((~m) & b)
+      Else
+        w0 = b : w1 = b
+      EndIf
+      If sh = 0
+        PokeL(gp, w0) : PokeL(gp + 4, w1)
+      Else
+        PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
+      EndIf
+      gp = gp + 8
+    Next
+    VicCellsTail(gp, sh, cy)
+    ProcedureReturn
+  EndIf
   ; multicolour text (and its hires cells) and multicolour bitmap: the colours that are the
   ; same for the whole line are set once
   If (mode = 1 Or mode = 3) And VicDisplay
