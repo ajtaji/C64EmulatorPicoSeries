@@ -35,7 +35,7 @@ Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_P
 Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
 Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i, VicLine.i
 ; where the time goes (microseconds, summed until the platform clears them)
-Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i
+Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i, PerfCellUs.i, PerfSprUs.i
 
 Declare VicReset()
 Declare.i VicRead(reg.i)

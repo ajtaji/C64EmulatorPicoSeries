@@ -413,7 +413,7 @@ EndProcedure
 ; border, then the sprites' MCBASE steps of cycles 15 and 16.
 ProcedureRAM VicDrawLine()
   Protected i.i, n.i, mode.i, p.i, g.i, c.i, col.i, mb.i, cb.i, bb.i, idle.i, xs.i, bc.i, lft.i, rgt.i, vy.i
-  Protected top.i, bottom.i, visible.i
+  Protected top.i, bottom.i, visible.i, t0.i, t1.i
   If VicRaster = $30 And (VicReg($11) & $10) : VicDenSeen = 1 : EndIf
   VicBad = VicBadCondition()
   If VicRaster = 0 : VicVcBase = 0 : EndIf
@@ -452,8 +452,11 @@ ProcedureRAM VicDrawLine()
       For i = 32 To 31 + xs : PokeA(VicOut + i, c) : Next
       cb = (VicReg($18) & $0E) << 10
       bb = (VicReg($18) & 8) << 10
+      If PerfOn : t0 = PlatformUs() : EndIf
       VicCells(mode, xs, cb, bb)
+      If PerfOn : t1 = PlatformUs() : PerfCellUs = PerfCellUs + t1 - t0 : EndIf
       VicSprites()
+      If PerfOn : PerfSprUs = PerfSprUs + PlatformUs() - t1 : EndIf
       If VicReg($16) & 8
         lft = 32 : rgt = 352
       Else
