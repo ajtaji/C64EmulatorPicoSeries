@@ -10,6 +10,7 @@
 ;   `s  the screen's text      `r  reset      `d  the built-in demo
 ;   `b  boot BASIC             `m  mute       `0-`9 put the store's n-th .PRG in and RUN it
 ;   `l  LOAD"*",8,1 and RUN    `j  joystick fire for 0.2 s      `u/`n/`a/`e  up/down/left/right 0.2 s
+;   `p  the time split (CPU / VIC / SID per second) in the status line, on / off
 ; Out: C64_STATUS once a second (frames, emulation time, display, audio).
 XIncludeFile "cpu6510.pmi"
 XIncludeFile "c64.pmi"
@@ -109,6 +110,7 @@ Procedure AppCommand(key.i)
   ElseIf key = 98
     If AppBoot() = 0 : Say("C64 no ROMs in the store") : Eol() : EndIf
   ElseIf key = 109 : SidMute = 1 - SidMute
+  ElseIf key = 112 : PerfOn = 1 - PerfOn
   ElseIf key >= 48 And key <= 57
     If StoreFind(4, key - 48)
       C64QueuePrg(StoreAddr, StoreSize, 1)
@@ -189,7 +191,7 @@ Procedure C64Main()
       Say(" bt_live=") : Num(AudioLive) : Say(" bt_under=") : Num(AudioUnderruns) : Say(" bt_packets=") : Num(AudioPackets)
       Say(" pc=$") : Hex4(PC) : Say(" stop=") : Num(Stopped) : Say(" late=") : Num(AppLate)
       Say(" loads=") : Num(LoadCount)
-      Say(" cpu_us=") : Num(PerfCpuUs) : Say(" vic_us=") : Num(PerfVicUs) : Say(" sid_us=") : Num(PerfSidUs)
+      If PerfOn : Say(" cpu_us=") : Num(PerfCpuUs) : Say(" vic_us=") : Num(PerfVicUs) : Say(" sid_us=") : Num(PerfSidUs) : EndIf
       Eol()
       PerfCpuUs = 0 : PerfVicUs = 0 : PerfSidUs = 0
       lastMade = LinesMade : lastOut = VidLinesOut : lastSamples = SidSamples : lastVf = VidFrames

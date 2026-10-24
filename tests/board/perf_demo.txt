@@ -1,5 +1,7 @@
-# The built-in demo (music on three voices, a sprite, raster IRQs): status lines for the speed.
+# The built-in demo (music on three voices, a sprite, raster IRQs): speed, without and then with the time split.
 expect C64_STATUS 20
 send \`d
 expect C64 mode=demo 5
-wait 10
+wait 8
+send \`p
+wait 4

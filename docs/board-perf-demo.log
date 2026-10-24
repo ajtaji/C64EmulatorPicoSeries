@@ -3,7 +3,7 @@ C64 core1 launch=1
 C64 audio: none in this build
 C64 mode=basic load_trap=1 d64=1
 C64 spi_hz=100000000 frame_us=19950
-C64_STATUS frames=51 us=1017451 emu_us=895291 worst_us=17995 kips=267 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=65734 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=0 loads=0 cpu_us=211362 vic_us=429242 sid_us=213725
+C64_STATUS frames=51 us=1017451 emu_us=890320 worst_us=17896 kips=267 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=95743 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$F7C0 stop=0 late=0 loads=0 cpu_us=210675 vic_us=458957 sid_us=179558
 
 >>> expect 'C64_STATUS': ok
 
@@ -11,13 +11,13 @@ C64_STATUS frames=51 us=1017451 emu_us=895291 worst_us=17995 kips=267 lines_made
 C64 mode=demo (the built-in demo)
 
 >>> expect 'C64 mode=demo': ok
-C64_STATUS frames=50 us=1008847 emu_us=998715 worst_us=27459 kips=300 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=8005 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=227359 vic_us=415123 sid_us=291979
-C64_STATUS frames=50 us=1018860 emu_us=1018144 worst_us=20619 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=229141 vic_us=417288 sid_us=316974
-C64_STATUS frames=50 us=1019309 emu_us=1018628 worst_us=20625 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47882 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=229120 vic_us=417831 sid_us=316830
-C64_STATUS frames=50 us=1019675 emu_us=1018994 worst_us=20627 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=229263 vic_us=417709 sid_us=317274
-C64_STATUS frames=50 us=1019099 emu_us=1018419 worst_us=20614 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=229073 vic_us=417242 sid_us=317296
-C64_STATUS frames=50 us=1018892 emu_us=1018214 worst_us=20615 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47882 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0 cpu_us=229069 vic_us=417224 sid_us=317096
-C64_STATUS frames=50 us=1014743 emu_us=1014064 worst_us=20608 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0 cpu_us=229147 vic_us=413207 sid_us=316871
-C64_STATUS frames=51 us=1019465 emu_us=1018788 worst_us=20236 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0 cpu_us=233781 vic_us=405974 sid_us=323224
-C64_STATUS frames=51 us=1019044 emu_us=1018361 worst_us=20234 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48840 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0 cpu_us=233650 vic_us=405604 sid_us=323285
-C64_STATUS frames=50 us=1008214 emu_us=1007533 worst_us=20629 kips=305 lines_made=13600 lines_out=13600 lcd_frames=50 vid_wait_us=0 sid=47880 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0 cpu_us=229267 vic_us=406626 sid_us=316881
+C64_STATUS frames=51 us=1017451 emu_us=985532 worst_us=27265 kips=306 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=9390 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=231698 vic_us=425794 sid_us=262512
+C64_STATUS frames=51 us=1017449 emu_us=998352 worst_us=19707 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233407 vic_us=424317 sid_us=284725
+C64_STATUS frames=51 us=1017450 emu_us=999202 worst_us=19716 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233728 vic_us=424551 sid_us=284943
+C64_STATUS frames=51 us=1017450 emu_us=998796 worst_us=19718 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233364 vic_us=424695 sid_us=284728
+C64_STATUS frames=51 us=1017451 emu_us=998274 worst_us=19708 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233465 vic_us=424183 sid_us=284724
+C64_STATUS frames=51 us=1017448 emu_us=998290 worst_us=19710 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48840 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233407 vic_us=424249 sid_us=284688
+C64_STATUS frames=51 us=1017450 emu_us=991930 worst_us=19699 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233465 vic_us=417826 sid_us=284719
+C64_STATUS frames=51 us=1017451 emu_us=978609 worst_us=19311 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233703 vic_us=404144 sid_us=284904
+C64_STATUS frames=51 us=1017450 emu_us=978380 worst_us=19314 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233445 vic_us=404165 sid_us=284854
+C64_STATUS frames=51 us=1017450 emu_us=990357 worst_us=19709 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=0 sid=48838 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=0 loads=0 cpu_us=233481 vic_us=416332 sid_us=284817

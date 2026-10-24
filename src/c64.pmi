@@ -35,7 +35,7 @@ Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_P
 Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
 Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i, VicLine.i
 ; where the time goes (microseconds, summed until the platform clears them)
-Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i = 1
+Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i
 
 Declare VicReset()
 Declare.i VicRead(reg.i)
@@ -290,11 +290,11 @@ EndProcedure
 ProcedureRAM C64RunLine()
   Protected t0.i, t1.i
   VicStartLine()
-  t0 = PlatformUs()
+  If PerfOn : t0 = PlatformUs() : EndIf
   C64RunTo(C64LineStart + 14)
-  t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0
+  If PerfOn : t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0 : EndIf
   VicDrawLine()
-  t0 = PlatformUs() : PerfVicUs = PerfVicUs + t0 - t1
+  If PerfOn : t0 = PlatformUs() : PerfVicUs = PerfVicUs + t0 - t1 : EndIf
   If VicBad
     If C64Clock - (C64LineStart + 14) < 0 : C64Clock = C64LineStart + 14 : EndIf
     C64Clock = C64Clock + 40
@@ -304,11 +304,11 @@ ProcedureRAM C64RunLine()
     C64Clock = C64LineStart + C64CyclesPerLine - VicSpriteSteal
   EndIf
   C64Clock = C64Clock + VicSpriteSteal
-  t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0
+  If PerfOn : t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0 : EndIf
   VicEndLine()
   ; the SID catches up every 4 lines (a register write brings it up to its own cycle first)
   If (VicLine & 3) = 3 : SidRun(C64Clock) : EndIf
-  PerfSidUs = PerfSidUs + PlatformUs() - t1
+  If PerfOn : PerfSidUs = PerfSidUs + PlatformUs() - t1 : EndIf
   C64LineStart = C64LineStart + C64CyclesPerLine
 EndProcedure
 

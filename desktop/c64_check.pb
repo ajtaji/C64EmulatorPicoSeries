@@ -173,6 +173,7 @@ If mode$ = "bench"
 EndIf
 
 If mode$ = "demo"
+  PerfOn = 1
   If prg$ = "" : prg$ = GetPathPart(ProgramFilename()) + "..\tests\demo.prg" : EndIf
   *prg = LoadFile(prg$, @size)
   BenchRoms() : BenchMode = 0
@@ -204,6 +205,7 @@ If mode$ = "demo"
 EndIf
 
 If mode$ = "boot"
+  PerfOn = 1
   Define dd.i, n$, sz.i
   If Right(romdir$, 1) <> "\" : romdir$ + "\" : EndIf
   dd = ExamineDirectory(#PB_Any, romdir$, "*.*")
