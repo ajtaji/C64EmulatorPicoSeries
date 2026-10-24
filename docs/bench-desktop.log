@@ -482,3 +482,4 @@ trap17 - ok
 branchwrap
 branchwrap - ok
 mmufetch
+BENCH tests=241 failures=0 frames=187960 ms=58503 instructions=1066523928

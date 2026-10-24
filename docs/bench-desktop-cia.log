@@ -1,111 +1,23 @@
-== mmu
-right  0 7  95 86 00 03
-
-*** FAILED: mmu
-BENCH tests=1 failures=1 frames=1 ms=33 instructions=676
-== cpuport
-right  00 df
-
-*** FAILED: cpuport
-BENCH tests=1 failures=1 frames=25 ms=23 instructions=190778
-== cputiming
-
-cputiming - ok
-BENCH tests=2 failures=0 frames=133 ms=76 instructions=771092
-== irq
-irq
-wrong $dc0d
-*** FAILED: irq
-BENCH tests=1 failures=1 frames=1 ms=38 instructions=245
-== nmi
-nmi
-wrong $dd0d
-*** FAILED: nmi
-BENCH tests=1 failures=1 frames=1 ms=44 instructions=242
-== cia1tb123
-
-cia1tb123
-*** TIMEOUT after 3000 frames in cia1tb123
-BENCH tests=1 failures=1 frames=3000 ms=921 instructions=18493072
-== cia2tb123
-
-cia2tb123
-*** TIMEOUT after 3000 frames in cia2tb123
-BENCH tests=1 failures=1 frames=3000 ms=906 instructions=18493072
-== cia1pb6
-cia1pb6
-old new pb6  00 02 -
-*** TIMEOUT after 3000 frames in cia1pb6
-BENCH tests=1 failures=1 frames=3000 ms=973 instructions=17245813
-== cia1pb7
-cia1pb7
-old new pb7  00 02 -
-*** TIMEOUT after 3000 frames in cia1pb7
-BENCH tests=1 failures=1 frames=3000 ms=900 instructions=17245813
-== cia2pb6
-cia2pb6
-old new pb6  00 02 -
-*** TIMEOUT after 3000 frames in cia2pb6
-BENCH tests=1 failures=1 frames=3000 ms=1042 instructions=17245813
-== cia2pb7
-cia2pb7
-old new pb7  00 02 -
-*** TIMEOUT after 3000 frames in cia2pb7
-BENCH tests=1 failures=1 frames=3000 ms=941 instructions=17245813
-== cia1ta
-
-cia1ta
-*** TIMEOUT after 3000 frames in cia1ta
-BENCH tests=1 failures=1 frames=3000 ms=887 instructions=17245782
-== cia1tb
-
-cia1tb
-*** TIMEOUT after 3000 frames in cia1tb
-BENCH tests=1 failures=1 frames=3000 ms=899 instructions=17245782
-== cia2ta
-
-cia2ta
-*** TIMEOUT after 3000 frames in cia2ta
-BENCH tests=1 failures=1 frames=3000 ms=865 instructions=17245784
-== cia2tb
-
-cia2tb
-*** TIMEOUT after 3000 frames in cia2tb
-BENCH tests=1 failures=1 frames=3000 ms=966 instructions=17245784
-== cia1tab
-
-cia1tab
-*** TIMEOUT after 3000 frames in cia1tab
-BENCH tests=1 failures=1 frames=3000 ms=1387 instructions=17246862
-== icr01
-icr01
-cia1 icr is not $01
-*** TIMEOUT after 3000 frames in icr01
-BENCH tests=1 failures=1 frames=3000 ms=961 instructions=17245792
-== imr
-imr
-*** TIMEOUT after 3000 frames in imr
-BENCH tests=1 failures=1 frames=3000 ms=917 instructions=17237144
-== flipos
-flipos
-set oneshot at t may not stop counter
-*** TIMEOUT after 3000 frames in flipos
-BENCH tests=1 failures=1 frames=3000 ms=878 instructions=17245802
-== oneshot
-oneshot
-cra is not $08 at icr=$01
-*** TIMEOUT after 3000 frames in oneshot
-BENCH tests=1 failures=1 frames=3000 ms=845 instructions=17245795
-== cntdef
-cntdef
-*** TIMEOUT after 3000 frames in cntdef
-BENCH tests=1 failures=1 frames=3000 ms=926 instructions=17245783
-== cnto2
-cnto2
-cnt to o2 does not delay 2 clocks
-*** TIMEOUT after 3000 frames in cnto2
-BENCH tests=1 failures=1 frames=3000 ms=891 instructions=17245798
-== loadth
-loadth
-*** TIMEOUT after 3000 frames in loadth
-BENCH tests=1 failures=1 frames=3000 ms=895 instructions=17245777
+mmu: after  0 7  95 21 00 03|right  0 7  95 86 00 03|*** FAILED: mmu|BENCH tests=1 failures=1 frames=1 ms=8 instructions=680|
+cpuport: cpuport - ok|BENCH tests=2 failures=0 frames=73 ms=31 instructions=560215|
+cputiming: cputiming - ok|BENCH tests=2 failures=0 frames=136 ms=64 instructions=789192|
+irq: stack  13ab 00 14|right  1085 00 14|*** FAILED: irq|BENCH tests=1 failures=1 frames=4 ms=45 instructions=19855|
+nmi: stack  08cb 04 14|right  13ac 00 14|*** FAILED: nmi|BENCH tests=1 failures=1 frames=1 ms=49 instructions=1018|
+cia1tb123: cia1tb123|error 00 10 cycle 2|*** FAILED: cia1tb123|BENCH tests=1 failures=1 frames=1 ms=38 instructions=5550|
+cia2tb123: cia2tb123|error 00 10 cycle 2|*** FAILED: cia2tb123|BENCH tests=1 failures=1 frames=1 ms=44 instructions=5550|
+cia1pb6: old new pb6  00 02 -|*** FAILED: cia1pb6|break|BENCH tests=2 failures=1 frames=1 ms=20 instructions=1172|
+cia1pb7: old new pb7  00 02 -|*** FAILED: cia1pb7|break|BENCH tests=2 failures=1 frames=1 ms=19 instructions=1172|
+cia2pb6: old new pb6  00 02 -|*** FAILED: cia2pb6|break|BENCH tests=2 failures=1 frames=1 ms=20 instructions=1172|
+cia2pb7: old new pb7  00 02 -|*** FAILED: cia2pb7|break|BENCH tests=2 failures=1 frames=1 ms=66 instructions=1172|
+cia1ta: after 01 01 01|right 01 81 01|*** FAILED: cia1ta|BENCH tests=1 failures=1 frames=46 ms=23 instructions=283950|
+cia1tb: after 01 02 01|right 01 82 01|*** FAILED: cia1tb|BENCH tests=1 failures=1 frames=44 ms=50 instructions=271546|
+cia2ta: after 01 01 01|right 01 81 01|*** FAILED: cia2ta|BENCH tests=1 failures=1 frames=50 ms=28 instructions=309732|
+cia2tb: after 01 02 01|right 01 82 01|*** FAILED: cia2tb|BENCH tests=1 failures=1 frames=50 ms=37 instructions=309732|
+cia1tab: icr|    00 00 01 01 01 01 01 01 01 03 01 83 01 83 01 83 03 83 83 83 83 83 83 83|*** FAILED: cia1tab|BENCH tests=1 failures=1 frames=3 ms=118 instructions=16023|
+icr01: icr01 - ok|BENCH tests=2 failures=0 frames=1 ms=11 instructions=465|
+imr: imr=$81 no irq in clock 3|*** FAILED: imr|break|BENCH tests=2 failures=1 frames=1 ms=1 instructions=574|
+flipos: set oneshot at t-1 did not stop counter|*** FAILED: flipos|break|BENCH tests=2 failures=1 frames=1 ms=20 instructions=643|
+oneshot: oneshot - ok|BENCH tests=2 failures=0 frames=1 ms=12 instructions=378|
+cntdef: cntdef - ok|BENCH tests=2 failures=0 frames=1 ms=14 instructions=350|
+cnto2: cnt to o2 does not delay 2 clocks|*** FAILED: cnto2|break|BENCH tests=2 failures=1 frames=1 ms=7 instructions=569|
+loadth: loadth - ok|BENCH tests=2 failures=0 frames=1 ms=4 instructions=394|

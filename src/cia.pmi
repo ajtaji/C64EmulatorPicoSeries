@@ -41,6 +41,8 @@ Global Dim TmLoadAt.i(4)
 Global Dim TmSkip.i(4)
 Global Dim TmUf.i(4)
 Global Dim TmUfCount.i(4)
+; when each unit's interrupt condition (ICR flags AND mask) last became true
+Global Dim CiaCondSince.i(2)
 ; The keyboard: KeyRows(column) has a bit set for each pressed key's row.
 Global Dim KeyRows.i(8)
 Global Joy1.i, Joy2.i
@@ -93,6 +95,7 @@ Procedure TmUnderflow(k.i, at.i, many.i)
   Protected u.i
   u = k >> 1
   TmUf(k) = at : TmUfCount(k) = TmUfCount(k) + many
+  If (CiaIcr(u) & CiaMask(u) & $1F) = 0 And (CiaMask(u) & (1 + (k & 1))) : CiaCondSince(u) = at : EndIf
   CiaIcr(u) = CiaIcr(u) | (1 + (k & 1))
 EndProcedure
 
@@ -165,25 +168,15 @@ Procedure CiaSync(unit.i, now.i)
   TmSeenA(unit) = TmUfCount(unit * 2)
 EndProcedure
 
-; Is a unit's interrupt bit up at clock now: a masked-in timer flag at least
-; CiaIrDelay cycles old, or any other masked-in source.
+; Is a unit's interrupt bit up at clock now: its condition (a flag AND its mask
+; bit) has been true for CiaIrDelay cycles, whatever made it true.
 Procedure.i CiaIrReady(unit.i, now.i)
-  Protected f.i
-  f = CiaIcr(unit) & CiaMask(unit) & $1F
-  If f & $1C : ProcedureReturn 1 : EndIf
-  If (f & 1) And now - TmUf(unit * 2) >= CiaIrDelay : ProcedureReturn 1 : EndIf
-  If (f & 2) And now - TmUf(unit * 2 + 1) >= CiaIrDelay : ProcedureReturn 1 : EndIf
-  ProcedureReturn 0
+  If (CiaIcr(unit) & CiaMask(unit) & $1F) = 0 : ProcedureReturn 0 : EndIf
+  ProcedureReturn Bool(now - CiaCondSince(unit) >= CiaIrDelay)
 EndProcedure
-; When a unit's line rose: a timer's interrupt bit comes up a cycle after its
-; underflow, even when the machine looks at it later; anything else, now.
+; When a unit's line rose: CiaIrDelay after its condition became true.
 Procedure.i CiaAssertTime(unit.i)
-  Protected f.i, t.i
-  f = CiaIcr(unit) & CiaMask(unit) & $1F
-  t = CiaLinesAt
-  If (f & 1) And TmUf(unit * 2) + CiaIrDelay - t < 0 : t = TmUf(unit * 2) + CiaIrDelay : EndIf
-  If (f & 2) And TmUf(unit * 2 + 1) + CiaIrDelay - t < 0 : t = TmUf(unit * 2 + 1) + CiaIrDelay : EndIf
-  ProcedureReturn t
+  ProcedureReturn CiaCondSince(unit) + CiaIrDelay
 EndProcedure
 Procedure CiaUpdateLines()
   Protected rise.i, at.i
@@ -223,18 +216,12 @@ Procedure CiaPlan(now.i)
       EndIf
     EndIf
   Next
-  ; a flag already up whose interrupt bit is still a cycle away
+  ; a condition already true whose interrupt bit is still a cycle away
   For u = 0 To 1
-    f = CiaIcr(u) & CiaMask(u)
-    If (f & 3) <> 0 And CiaIrReady(u, now) = 0
-      If f & 1
-        t = TmUf(u * 2) + CiaIrDelay
-        If t - best < 0 : best = t : EndIf
-      EndIf
-      If f & 2
-        t = TmUf(u * 2 + 1) + CiaIrDelay
-        If t - best < 0 : best = t : EndIf
-      EndIf
+    f = CiaIcr(u) & CiaMask(u) & $1F
+    If f <> 0 And CiaIrReady(u, now) = 0
+      t = CiaCondSince(u) + CiaIrDelay
+      If t - best < 0 : best = t : EndIf
     EndIf
   Next
   If best - now < 1 : best = now + 1 : EndIf
@@ -258,7 +245,7 @@ Procedure CiaReset()
       CiaTod(u * 4 + i) = 0 : CiaAlarm(u * 4 + i) = 0
     Next
     CiaTod(u * 4 + 3) = 1
-    TmSeenA(u) = 0
+    TmSeenA(u) = 0 : CiaCondSince(u) = C64Clock
   Next
   For k = 0 To 3
     TmCount(k) = $FFFF : TmLatch(k) = $FFFF : TmRun(k) = 0 : TmStamp(k) = C64Clock
@@ -336,7 +323,10 @@ Procedure CiaTodTenth(u.i)
   For i = 0 To 3
     If CiaTod(b + i) <> CiaAlarm(b + i) : same = 0 : EndIf
   Next
-  If same : CiaIcr(u) = CiaIcr(u) | 4 : EndIf
+  If same
+    If (CiaIcr(u) & CiaMask(u) & $1F) = 0 : CiaCondSince(u) = C64Clock : EndIf
+    CiaIcr(u) = CiaIcr(u) | 4
+  EndIf
 EndProcedure
 
 Procedure CiaFrameTick()
@@ -465,13 +455,18 @@ Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
   ElseIf reg = 12
     CiaSdr(unit) = v
     ; a byte shifted out completes at once: the serial-port interrupt
-    If CiaCra(unit) & $40 : CiaIcr(unit) = CiaIcr(unit) | 8 : EndIf
+    If CiaCra(unit) & $40
+      If (CiaIcr(unit) & CiaMask(unit) & $1F) = 0 : CiaCondSince(unit) = now : EndIf
+      CiaIcr(unit) = CiaIcr(unit) | 8
+    EndIf
   ElseIf reg = 13
+    old = CiaIcr(unit) & CiaMask(unit) & $1F
     If v & $80
       CiaMask(unit) = CiaMask(unit) | (v & $1F)
     Else
       CiaMask(unit) = CiaMask(unit) & (~(v & $1F))
     EndIf
+    If old = 0 And (CiaIcr(unit) & CiaMask(unit) & $1F) <> 0 : CiaCondSince(unit) = now : EndIf
   ElseIf reg = 14
     old = CiaCra(unit)
     CiaCra(unit) = v & $EF
