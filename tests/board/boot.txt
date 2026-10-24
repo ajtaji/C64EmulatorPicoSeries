@@ -1,0 +1,19 @@
+# Boot from the flash store (KERNAL / BASIC / CHARGEN there): READY., the screen editor, then the
+# store's first .PRG (the PureMetal raster split) put in and RUN.
+expect C64 mode=basic 20
+expect C64_STATUS 5
+wait 4
+send \`s
+expect READY. 5
+send 10 REM TYPED ON THE PICO\n
+wait 2
+send LIST\n
+wait 2
+send \`s
+expect TYPED ON THE PICO 5
+send \`0
+expect C64 prg queued 5
+wait 6
+send \`s
+expect PUREMETAL 5
+wait 8
