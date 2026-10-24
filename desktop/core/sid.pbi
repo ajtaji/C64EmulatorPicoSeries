@@ -44,8 +44,10 @@ Procedure SidSetCutoff()
   If SidW > ((8192 - SidQ) * 7) / 8 : SidW = ((8192 - SidQ) * 7) / 8 : EndIf
 EndProcedure
 
+; Everything here stays inside 32 bits (the Pico's integers): FREQ x cycles-per-sample in
+; 24.8 fixed point is at most 65535 x 5464 (NTSC).
 Procedure SidStepOf(v.i)
-  SidStep(v) = ((SidReg(v * 7) | (SidReg(v * 7 + 1) << 8)) * SidCps16) >> 16
+  SidStep(v) = ((SidReg(v * 7) | (SidReg(v * 7 + 1) << 8)) * (SidCps16 >> 8)) >> 8
 EndProcedure
 
 Procedure SidReset()
@@ -56,7 +58,8 @@ Procedure SidReset()
     SidRateCnt(i) = 0 : SidExpCnt(i) = 0 : SidOut(i) = 0
   Next
   For i = 0 To 15 : SidRates(i) = PeekU(?SidRateData + i * 2) : Next
-  SidCps16 = (C64Hz * 65536) / #SID_RATE
+  ; cycles per sample in 16.16: C64Hz x 65536 / 48000 = C64Hz x 512 / 375 (C64Hz x 65536 overflows 32 bits)
+  SidCps16 = (C64Hz * 512) / 375
   SidPhase = 0 : SidLast = C64Clock
   SidLp = 0 : SidBp = 0 : SidHp = 0 : SidDcIn = 0 : SidDcOut = 0
   SidSetCutoff()
@@ -171,7 +174,7 @@ Procedure SidRun(now.i)
   Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i
   n = now - SidLast
   If n <= 0 : ProcedureReturn : EndIf
-  If n > 100000 : n = 100000 : EndIf
+  If n > 20000 : n = 20000 : EndIf
   SidLast = now
   SidPhase = SidPhase + (n << 16)
   route = SidReg($17) & 7
@@ -227,10 +230,10 @@ Procedure SidRun(now.i)
     SidHp = filt - SidLp - ((SidBp * SidQ) >> 12)
     SidBp = SidBp + ((SidW * SidHp) >> 12)
     SidLp = SidLp + ((SidW * SidBp) >> 12)
-    If SidBp > 400000 : SidBp = 400000 : EndIf
-    If SidBp < -400000 : SidBp = -400000 : EndIf
-    If SidLp > 400000 : SidLp = 400000 : EndIf
-    If SidLp < -400000 : SidLp = -400000 : EndIf
+    If SidBp > 100000 : SidBp = 100000 : EndIf
+    If SidBp < -100000 : SidBp = -100000 : EndIf
+    If SidLp > 100000 : SidLp = 100000 : EndIf
+    If SidLp < -100000 : SidLp = -100000 : EndIf
     o = 0
     If mode & $10 : o = o + SidLp : EndIf
     If mode & $20 : o = o + SidBp : EndIf

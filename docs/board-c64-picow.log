@@ -1,3 +1,31 @@
 > RP2040 ASSEMBLER: 83020 bytes of code run from SRAM at $20000000-$2001444B, copied from flash at boot; 57740 bytes of SRAM left free, stacks and reserved windows excluded.
 ROM_TOTAL_RP2040|130396|2097152
 image ends at 0x1001FE00
+lease c64 2026-10-23T21:08:36.1997798-05:00 pid 130812 until 21:11
+released
+NOTE: 'global_rdmap' lifted clear of usb_serial descriptor staging at $20030000-$2003007F.
+NOTE: 'global_rdmap' lifted clear of usb_serial outgoing packet buffer at $20030080-$200300BF.
+NOTE: 'global_rdmap' lifted clear of usb_serial receive ring at $20030100-$200301FF.
+NOTE: 'global_rdmap' lifted clear of usb_serial reboot command at $20030200-$2003021F.
+NOTE: 'global_rdmap' lifted clear of flashid ROM pointers and result at $20030220-$2003022F.
+NOTE: 'global_rdmap' lifted clear of flashid command/reply buffer at $20030230-$2003023F.
+NOTE: 'global_rdmap' lifted clear of flashid boot2 copy at $20030240-$2003033F.
+NOTE: 'global_rdmap' lifted clear of flashid stub, run with XIP off at $20030340-$200303FF.
+C64 PureMetal clk_khz=200000
+C64 core1 launch=1
+C64 audio: none in this build
+C64 mode=demo (the built-in demo)
+C64 spi_hz=100000000 frame_us=19950
+C64_STATUS frames=1 us=4878149 emu_us=4878129 worst_us=4878129 kips=5 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427397 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=1 loads=0
+C64_STATUS frames=1 us=4894658 emu_us=4894098 worst_us=4894098 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427441 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=2 loads=0
+C64_STATUS frames=1 us=4894112 emu_us=4893549 worst_us=4893549 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427397 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=3 loads=0
+C64_STATUS frames=1 us=4893577 emu_us=4893029 worst_us=4893029 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427354 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=4 loads=0
+C64_STATUS frames=1 us=4894350 emu_us=4893804 worst_us=4893804 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427419 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=5 loads=0
+C64_STATUS frames=1 us=4893822 emu_us=4893306 worst_us=4893306 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427376 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=6 loads=0
+C64_STATUS frames=1 us=4894293 emu_us=4893794 worst_us=4893794 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427419 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=7 loads=0
+C64_STATUS frames=1 us=4894249 emu_us=4893742 worst_us=4893742 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427419 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=8 loads=0
+C64_STATUS frames=1 us=4893614 emu_us=4893084 worst_us=4893084 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427354 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=9 loads=0
+C64_STATUS frames=1 us=4894637 emu_us=4894040 worst_us=4894040 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427440 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=10 loads=0
+C64_STATUS frames=1 us=4893621 emu_us=4893087 worst_us=4893087 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427354 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=11 loads=0
+C64_STATUS frames=1 us=4894336 emu_us=4893774 worst_us=4893774 kips=6 lines_made=272 lines_out=272 lcd_frames=1 vid_wait_us=0 sid=427419 bt_live=0 bt_under=0 bt_packets=0 pc=$C0FE stop=0 late=12 loads=0
+
