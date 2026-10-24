@@ -60,6 +60,9 @@ Procedure.i PlatformLine(viewY.i)
 EndProcedure
 Procedure PlatformLineDone(viewY.i)
 EndProcedure
+Procedure.i PlatformUs()
+  ProcedureReturn 0
+EndProcedure
 Procedure PlatformFrameDone()
 EndProcedure
 Procedure PlatformTick()

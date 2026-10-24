@@ -25,7 +25,7 @@ try {
     "lease $($l.Tag)"
     if ($Store) {
         $st = Resolve-Any $Store
-        $p = Start-Process -FilePath $pmf -ArgumentList ('--storage-write "' + $st + '" --offset $1F0000 --port ' + $Port) -WorkingDirectory (Split-Path $pmf -Parent) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput "$st.write.log" -RedirectStandardError "$st.write.err"
+        $p = Start-Process -FilePath $pmf -ArgumentList ('--storage-write "' + $st + '" --offset $1F0000 -t rp2040 --port ' + $Port) -WorkingDirectory (Split-Path $pmf -Parent) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput "$st.write.log" -RedirectStandardError "$st.write.err"
         "store write rc=$($p.ExitCode)"
         Get-Content "$st.write.log" | Where-Object { $_ -notmatch '^\[DEBUG\]|TELEMETRY' } | Select-Object -Last 6
         if ($p.ExitCode -ne 0) { throw 'store write failed' }

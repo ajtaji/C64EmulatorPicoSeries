@@ -40,6 +40,9 @@ Procedure BenchEvent(kind.i, rec.i)
 EndProcedure
 Procedure PlatformFrameDone()
 EndProcedure
+ProcedureRAM.i PlatformUs()
+  ProcedureReturn Micros()
+EndProcedure
 
 ProcedureRAM Core1Main()
   Core1Ready = 1
@@ -182,7 +185,9 @@ Procedure C64Main()
       Say(" bt_live=") : Num(AudioLive) : Say(" bt_under=") : Num(AudioUnderruns) : Say(" bt_packets=") : Num(AudioPackets)
       Say(" pc=$") : Hex4(PC) : Say(" stop=") : Num(Stopped) : Say(" late=") : Num(AppLate)
       Say(" loads=") : Num(LoadCount)
+      Say(" cpu_us=") : Num(PerfCpuUs) : Say(" vic_us=") : Num(PerfVicUs) : Say(" sid_us=") : Num(PerfSidUs)
       Eol()
+      PerfCpuUs = 0 : PerfVicUs = 0 : PerfSidUs = 0
       lastMade = LinesMade : lastOut = VidLinesOut : lastSamples = SidSamples : lastVf = VidFrames
       lastIns = CpuInstructions
       frames = 0 : AppEmuUs = 0 : AppWorstUs = 0 : VidWaitUs = 0 : report = now

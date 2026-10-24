@@ -17,6 +17,7 @@ Declare.i PlatformLine(viewY.i)
 Declare PlatformLineDone(viewY.i)
 Declare PlatformFrameDone()
 Declare PlatformTick()
+Declare.i PlatformUs()
 
 #C64_PAL_HZ = 985248
 #C64_NTSC_HZ = 1022727
@@ -33,6 +34,8 @@ Global PortDdr.i, PortData.i, C64Mode.i, C64IoVisible.i, C64Ultimax.i
 Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_PAL_HZ
 Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
 Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i
+; where the time goes (microseconds, summed until the platform clears them)
+Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i = 1
 
 Declare VicReset()
 Declare.i VicRead(reg.i)
@@ -285,9 +288,13 @@ EndProcedure
 ; One raster line: the CPU up to the line's drawing point (cycle 14), the line
 ; drawn, a badline's 40 stolen cycles, the rest of the line less the sprites' DMA.
 ProcedureRAM C64RunLine()
+  Protected t0.i, t1.i
   VicStartLine()
+  t0 = PlatformUs()
   C64RunTo(C64LineStart + 14)
+  t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0
   VicDrawLine()
+  t0 = PlatformUs() : PerfVicUs = PerfVicUs + t0 - t1
   If VicBad
     If C64Clock - (C64LineStart + 14) < 0 : C64Clock = C64LineStart + 14 : EndIf
     C64Clock = C64Clock + 40
@@ -297,8 +304,10 @@ ProcedureRAM C64RunLine()
     C64Clock = C64LineStart + C64CyclesPerLine - VicSpriteSteal
   EndIf
   C64Clock = C64Clock + VicSpriteSteal
+  t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0
   VicEndLine()
   SidRun(C64Clock)
+  PerfSidUs = PerfSidUs + PlatformUs() - t1
   C64LineStart = C64LineStart + C64CyclesPerLine
 EndProcedure
 
