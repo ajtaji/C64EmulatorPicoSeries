@@ -5,7 +5,11 @@
 ;
 ;   lorenz_check.exe [first-test] [--one]
 EnableExplicit
-XIncludeFile "core/cpu6510.pbi"
+CompilerIf Defined(PROCS, #PB_Constant)
+  XIncludeFile "core/cpu6510_procs.pbi"
+CompilerElse
+  XIncludeFile "core/cpu6510.pbi"
+CompilerEndIf
 
 Global TestDir$ = GetPathPart(ProgramFilename()) + "..\tests\lorenz\"
 Global Prints.i, Line$, Failures.i, Tests.i, Finished.i, One.i, Current$
