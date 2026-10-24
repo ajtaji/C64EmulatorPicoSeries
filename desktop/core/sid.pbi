@@ -100,6 +100,11 @@ Procedure SidEnvelope(v.i, n.i)
   Protected period.i, state.i, sus.i, env.i, ep.i
   state = SidEnvState(v)
   env = SidEnv(v)
+  ; nothing can change: released to 0, or held at the sustain level
+  If (state = 2 And env = 0) Or (state = 1 And env = (SidReg(v * 7 + 6) >> 4) * 17)
+    SidRateCnt(v) = 0
+    ProcedureReturn
+  EndIf
   If state = 0
     period = SidRates((SidReg(v * 7 + 5) >> 4) & 15)
   ElseIf state = 1
@@ -218,9 +223,14 @@ Procedure SidRun(now.i)
     Next
     filt = 0 : direct = 0
     For v = 0 To 2
-      wv = SidWave(v)
-      o = ((wv - $800) * SidEnv(v)) >> 6
-      If v = 2 : SidOsc3 = (wv >> 4) & 255 : EndIf
+      ; a silent voice costs nothing (voice 3's waveform is still read back through OSC3)
+      If SidEnv(v) Or v = 2
+        wv = SidWave(v)
+        o = ((wv - $800) * SidEnv(v)) >> 6
+        If v = 2 : SidOsc3 = (wv >> 4) & 255 : EndIf
+      Else
+        o = 0
+      EndIf
       If (route >> v) & 1
         filt = filt + o
       ElseIf v < 2 Or (SidReg($18) & $80) = 0

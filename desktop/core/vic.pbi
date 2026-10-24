@@ -28,7 +28,7 @@ Global Dim SprOcc.a(448)
 Global VicRaster.i, VicCompare.i, VicIrqFlags.i, VicIrqMask.i
 Global VicDenSeen.i, VicVcBase.i, VicVc.i, VicRc.i, VicDisplay.i, VicVBorder.i = 1
 Global VicSprSpr.i, VicSprBg.i, VicViewY0.i = 15, VicViewH.i = 272
-Global VicOut.i, VicLinesDrawn.i
+Global VicOut.i, VicLinesDrawn.i, VicSprActive.i = 1
 ; Eight pixels a cell as two 32-bit stores: Mask4(n) has byte k = $FF where bit 3-k of n is
 ; set (the leftmost pixel is the lowest byte). Cells are stored
 ; as words when there is no X scroll, else byte by byte.
@@ -153,9 +153,11 @@ Procedure VicStartLine()
   VicCompareCheck()
   VicBad = VicBadCondition()
   count = 0
-  For n = 0 To 7
-    If SprDma(n) : count = count + 1 : EndIf
-  Next
+  If VicSprActive
+    For n = 0 To 7
+      If SprDma(n) : count = count + 1 : EndIf
+    Next
+  EndIf
   VicSpriteSteal = 0
   If count : VicSpriteSteal = count * 2 + 3 : EndIf
   ; the raster interrupt comes at cycle 0 of the line (cycle 1 on line 0)
@@ -408,6 +410,7 @@ Procedure VicDrawLine()
     VicLinesDrawn = VicLinesDrawn + 1
   EndIf
   If VicDisplay : VicVc = (VicVc + 40) & $3FF : EndIf
+  If VicSprActive = 0 : ProcedureReturn : EndIf
   For n = 0 To 7
     If SprFF(n)
       SprMcBase(n) = (SprMcBase(n) + 3) & 63
@@ -421,6 +424,12 @@ EndProcedure
 Procedure VicEndLine()
   Protected n.i, ye.i, ptr.i, mb.i, adr.i
   mb = (VicReg($18) & $F0) << 6
+  ; no sprite enabled and none still running: nothing to do here (VicSprActive keeps the loops off)
+  VicSprActive = Bool(VicReg($15) <> 0)
+  For n = 0 To 7
+    If SprDma(n) Or SprDisp(n) : VicSprActive = 1 : EndIf
+  Next
+  If VicSprActive = 0 : Goto VicEndRows : EndIf
   For n = 0 To 7
     ye = (VicReg($17) >> n) & 1
     If ye : SprFF(n) = 1 - SprFF(n) : Else : SprFF(n) = 1 : EndIf
@@ -439,6 +448,7 @@ Procedure VicEndLine()
       SprMc(n) = SprMc(n) + 3
     EndIf
   Next
+VicEndRows:
   If VicRc = 7
     VicVcBase = VicVc
     VicDisplay = VicBadCondition()
