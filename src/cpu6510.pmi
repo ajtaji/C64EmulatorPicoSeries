@@ -14,6 +14,7 @@ Global Res.i, Left.i, Budget.i, Ready.i, Stopped.i, BadOpcode.i
 Global Ea.i, Value.i, Lo.i, Hi.i, Tmp.i, Base.i, Pg.i
 Global AccessPhase.i, CpuInstructions.i, InitIndex.i
 Global C64Clock.i, C64IrqLine.i
+ReserveRegister PC = r8, A = r9, Res = r10, Left = r11, X = r4, Pg = r5
 
 Declare.i C64IoRead(addr.i)
 Declare C64IoWrite(addr.i, v.i)

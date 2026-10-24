@@ -411,7 +411,7 @@ Global Res.i, Left.i, Budget.i, Ready.i, Stopped.i, BadOpcode.i
 Global Ea.i, Value.i, Lo.i, Hi.i, Tmp.i, Base.i, Pg.i
 Global AccessPhase.i, CpuInstructions.i, InitIndex.i
 Global C64Clock.i, C64IrqLine.i
-
+{RESERVE}
 Declare.i C64IoRead(addr.i)
 Declare C64IoWrite(addr.i, v.i)
 Declare C64PortWrite(addr.i, v.i)
@@ -521,9 +521,12 @@ def generate(lang):
         out += b
     table = '\n'.join(f'    Dispatch(${c:02X}) = ?Op{c:02X}' for c in range(256))
     if lang == 'pm':
-        head = HEAD.replace('{LABEL}', 'Label').replace('{PROC}', 'ProcedureRAM').replace('{GOTO}', 'Goto Dispatch(Tmp)')
+        # The hot CPU variables live in registers (the 6502 core's precedent): 10 KB less code, faster.
+        # Application-wide: no other code gets r4, r5, r8-r11.
+        head = HEAD.replace('{LABEL}', 'Label').replace('{PROC}', 'ProcedureRAM').replace('{GOTO}', 'Goto Dispatch(Tmp)').replace(
+            '{RESERVE}', 'ReserveRegister PC = r8, A = r9, Res = r10, Left = r11, X = r4, Pg = r5\n')
     else:
-        head = HEAD.replace('{LABEL}', 'i').replace('{PROC}', 'Procedure').replace(
+        head = HEAD.replace('{RESERVE}', '').replace('{LABEL}', 'i').replace('{PROC}', 'Procedure').replace(
             '{GOTO}', '!goto *(void*)((integer*)a_dispatch.a)[g_tmp];')
     s = head.replace('{TABLE}', table) + '\n'.join(out) + '\n' + FOOT
     if lang == 'pm':
