@@ -1,4 +1,4 @@
-lease c64 2026-10-23T23:11:13.7626372-05:00 pid 140204 until 23:15
+lease c64 2026-10-23T23:13:32.5683367-05:00 pid 110604 until 23:17
 upload rc=0
 expect 'd64=1': ok
 expect 'C64_STATUS': ok

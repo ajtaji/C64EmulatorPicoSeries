@@ -35,6 +35,11 @@ Global Dim Mask4.l(16)
 ; a multicolour cell's four colours, each doubled into a 2-pixel half-word
 Global Dim PairW.l(4)
 ; this line's sprites: span start / end in the line buffer, and whether another sprite's span meets it
+; multicolour text: MCTab(n) is the 4-pixel word for nibble n with the line's colours 0-2 (pair 3
+; left 0), MP3(n) the mask of its pair-3 pixels; MCKey says which colours MCTab was built for
+Global Dim MCTab.l(16)
+Global Dim MP3.l(16)
+Global MCKey.i = -1
 Global Dim SprPos.i(8)
 Global Dim SprEnd.i(8)
 Global Dim SprLap.i(8)
@@ -68,7 +73,13 @@ Procedure VicReset()
       If (i >> (3 - k)) & 1 : m = m | ($FF << (k * 8)) : EndIf
     Next
     Mask4(i) = m
+    ; pair 3 (both bits set) in the high or low half of the nibble
+    m = 0
+    If (i >> 2) = 3 : m = m | $FFFF : EndIf
+    If (i & 3) = 3 : m = m | $FFFF0000 : EndIf
+    MP3(i) = m
   Next
+  MCKey = -1
   For i = 0 To 63 : VicReg(i) = 0 : Next
   For i = 0 To 7
     SprDma(i) = 0 : SprDisp(i) = 0 : SprMcBase(i) = 0 : SprMc(i) = 0 : SprFF(i) = 1 : SprData(i) = 0
@@ -287,15 +298,17 @@ EndProcedure
 ; cell: stored as words when there is no X scroll (the line is word-aligned), else as bytes.
 ; Standard text, the common screen, has a loop of its own.
 ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
-  Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w0.i, w1.i, bg0.i, k.i, mc.i
+  Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w0.i, w1.i, bg0.i, k.i, mc.i, chp.i
   Protected p0.i, p1.i, p2.i, p3.i
   bg0 = VicReg($21) & 15
   If mode >= 5 : bg0 = 0 : EndIf
   gp = VicOut + 32 + xs
+  ; the line's character data: one 2 KB set inside one 4 KB block of the VIC's bank
+  chp = VicMap((cb >> 12) & 3) + cb + VicRc
   If mode = 0 And VicDisplay And xs = 0
     b = bg0 * $01010101
     For i = 0 To 39
-      g = VicMem(cb + (VmLine(i) << 3) + VicRc)
+      g = PeekA(chp + (VmLine(i) << 3))
       If g
         f = (ColLine(i) | 16) * $01010101
         m = Mask4(g >> 4)
@@ -316,15 +329,23 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
     PairW(0) = bg0 * $0101
     If mode = 1
       PairW(1) = (VicReg($22) & 15) * $0101 : PairW(2) = ((VicReg($23) & 15) | 16) * $0101
+      k = bg0 | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8)
+      If k <> MCKey
+        ; the table for this line's background colours (rebuilt only when they change)
+        MCKey = k : PairW(3) = 0
+        For i = 0 To 15
+          MCTab(i) = PairW((i >> 2) & 3) | (PairW(i & 3) << 16)
+        Next
+      EndIf
     EndIf
     For i = 0 To 39
       c = VmLine(i) : col = ColLine(i)
       If mode = 1
-        g = VicMem(cb + (c << 3) + VicRc)
+        g = PeekA(chp + (c << 3))
         If col & 8
-          PairW(3) = ((col & 7) | 16) * $0101
-          w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
-          w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
+          f = ((col & 7) | 16) * $01010101
+          w0 = MCTab(g >> 4) | (MP3(g >> 4) & f)
+          w1 = MCTab(g & 15) | (MP3(g & 15) & f)
         Else
           f = ((col & 7) | 16) * $01010101
           m = Mask4((g >> 4) & 15) : w0 = (m & f) | ((~m) & b)
