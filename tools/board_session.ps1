@@ -39,7 +39,7 @@ try {
     $rc = $LASTEXITCODE
     if ($After) {
         $af = Resolve-Any $After
-        $ao = Join-Path $root 'buildfter-silent.uf2'
+        $ao = Join-Path $root 'build/after-silent.uf2'
         $p = Start-Process -FilePath $pmf -ArgumentList ('--compile "' + $af + '" -S -o "' + $ao + '" --port ' + $Port) -WorkingDirectory (Split-Path $pmf -Parent) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput "$ao.board.log" -RedirectStandardError "$ao.stderr.log"
         "silent program back rc=$($p.ExitCode)"
     }
