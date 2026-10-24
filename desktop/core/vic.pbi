@@ -440,6 +440,8 @@ Procedure VicEndLine()
   Next
   If VicSprActive = 0 : Goto VicEndRows : EndIf
   For n = 0 To 7
+    ; a sprite that is off, not fetching and not shown has nothing to do here
+    If ((VicReg($15) >> n) & 1) = 0 And SprDma(n) = 0 And SprDisp(n) = 0 : Continue : EndIf
     ye = (VicReg($17) >> n) & 1
     If ye : SprFF(n) = 1 - SprFF(n) : Else : SprFF(n) = 1 : EndIf
     If (VicReg($15) >> n) & 1

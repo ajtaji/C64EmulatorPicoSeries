@@ -33,7 +33,7 @@ Global CartRomL.i, CartRomH.i, CartExrom.i = 1, CartGame.i = 1
 Global PortDdr.i, PortData.i, C64Mode.i, C64IoVisible.i, C64Ultimax.i
 Global C64Pal.i = 1, C64CyclesPerLine.i = 63, C64Lines.i = 312, C64Hz.i = #C64_PAL_HZ
 Global C64LineStart.i, C64Frame.i, C64NmiPending.i, C64NmiLevel.i, C64Restore.i
-Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i
+Global C64FlatRam.i, C64IrqAt.i, C64NmiAt.i, VicLine.i
 ; where the time goes (microseconds, summed until the platform clears them)
 Global PerfCpuUs.i, PerfVicUs.i, PerfSidUs.i, PerfOn.i = 1
 
@@ -306,12 +306,12 @@ ProcedureRAM C64RunLine()
   C64Clock = C64Clock + VicSpriteSteal
   t1 = PlatformUs() : PerfCpuUs = PerfCpuUs + t1 - t0
   VicEndLine()
-  SidRun(C64Clock)
+  ; the SID catches up every 4 lines (a register write brings it up to its own cycle first)
+  If (VicLine & 3) = 3 : SidRun(C64Clock) : EndIf
   PerfSidUs = PerfSidUs + PlatformUs() - t1
   C64LineStart = C64LineStart + C64CyclesPerLine
 EndProcedure
 
-Global VicLine.i
 Procedure C64RunFrame()
   For VicLine = 0 To C64Lines - 1
     C64RunLine()
