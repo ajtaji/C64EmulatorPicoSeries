@@ -1,10 +1,61 @@
-pmfc: C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\src\tests\lorenz1.picow  ->  RP2040
-> Intrinsics for RP2040: rp2040_hardware.def
-[DEBUG] Attempting to load intrinsics from: C:\Users\ajtaj\Desktop\Github\PureBasicCode\OpenGl Work\ArduinoBasic\RP2040\Intrinsics\rp2040_hardware.def
-> Loaded 6993 register names from rp2040_registers.def
-> Loaded Hardware Intrinsics from rp2040_hardware.def
-pmfc: pin aliases from Boards/Raspberry_Pi_Pico_W.board
-> F_CPU = 200000000 Hz, from the board's ClockSpeed - delay_ms and the baud divisors follow it.
+C64 LORENZ batch 1 of 3 clk_khz=200000
+
+Commodore 64 Emulator Test Suite
+Public Domain, no Copyright
+
+basic commands - ok
+ldab
+ldab - ok
+ldaz
+ldaz - ok
+ldazx
+ldazx - ok
+ldaa
+ldaa - ok
+ldaax
+ldaax - ok
+ldaay
+ldaay - ok
+ldaix
+ldaix - ok
+ldaiy
+ldaiy - ok
+staz
+staz - ok
+stazx
+stazx - ok
+staa
+staa - ok
+staax
+staax - ok
+staay
+staay - ok
+staix
+staix - ok
+staiy
+staiy - ok
+ldxb
+ldxb - ok
+ldxz
+ldxz - ok
+ldxzy
+ldxzy - ok
+ldxa
+ldxa - ok
+ldxay
+ldxay - ok
+stxz
+stxz - ok
+stxzy
+stxzy - ok
+stxa
+stxa - ok
+ldyb
+ldyb - ok
+ldyz
+ldyz - ok
+ldyzx
+he baud divisors follow it.
 pmfc: 58420 lines of assembly
 pmfc: wrote C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\lorenz1.uf2.asm
 > RP2040 ASSEMBLER: Starting Pass 1 (Resolving Labels)...

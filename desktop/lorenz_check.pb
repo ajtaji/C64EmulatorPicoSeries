@@ -44,6 +44,7 @@ Procedure.i LoadTest(name$)
   Next
   M($FFD2) = $02 : M($E16F) = $02 : M($FFE4) = $02 : M($8000) = $02 : M($A474) = $02
   Tests + 1 : Current$ = name$
+  If Tests = 123 Or Tests = 145 : PrintN("") : PrintN("INSTR_AT_" + Str(Tests) + " " + Str(CpuInstructions)) : EndIf
   ProcedureReturn 1
 EndProcedure
 

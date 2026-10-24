@@ -111,7 +111,7 @@ Procedure SaveShot(path$)
   SaveImage(img, path$, #PB_ImagePlugin_BMP)
 EndProcedure
 
-Define i.i, arg$, mode$, first$ = " start", romdir$, frames.i = 100000, prg$, d64$, type$, shot$
+Define wav$, i.i, arg$, mode$, first$ = " start", romdir$, frames.i = 100000, prg$, d64$, type$, shot$
 Define t.q, cyc.q, size.i, *basic, *kernal, *chars, *prg, *d64, st.i
 OpenConsole()
 For i = 0 To CountProgramParameters() - 1
@@ -125,6 +125,7 @@ For i = 0 To CountProgramParameters() - 1
     Case "--d64" : i + 1 : d64$ = ProgramParameter(i)
     Case "--type" : i + 1 : type$ = ProgramParameter(i)
     Case "--shot" : i + 1 : shot$ = ProgramParameter(i)
+    Case "--wav" : i + 1 : wav$ = ProgramParameter(i)
     Case "--ntsc" : C64SetStandard(0)
     Case "--demo" : mode$ = "demo"
 
@@ -158,11 +159,20 @@ If mode$ = "demo"
   C64InjectPrg(*prg, size, 0)
   PC = $C000
   Define peak.i, k.i
+  Define wavf.i, cur.i
+  If wav$ : wavf = CreateFile(#PB_Any, wav$) : WriteData(wavf, ?WavHead, 44) : EndIf
+  cur = SidSamples
   t = ElapsedMilliseconds()
   For i = 1 To frames
     C64RunFrame()
+    If wavf
+      While cur < SidSamples : WriteWord(wavf, SidPcm(cur & (#SID_RING - 1))) : cur + 1 : Wend
+    EndIf
   Next
   t = ElapsedMilliseconds() - t
+  If wavf
+    FileSeek(wavf, 40) : WriteLong(wavf, (cur - 0) * 2) : FileSeek(wavf, 4) : WriteLong(wavf, 36 + cur * 2) : CloseFile(wavf)
+  EndIf
   For k = 0 To #SID_RING - 1
     If Abs(SidPcm(k)) > peak : peak = Abs(SidPcm(k)) : EndIf
   Next
@@ -209,6 +219,8 @@ PrintN("usage: c64_check --bench [test] | --boot <romdir> [--frames N] [--prg f]
 End 2
 
 DataSection
+WavHead:
+  Data.a $52,$49,$46,$46, 0,0,0,0, $57,$41,$56,$45, $66,$6D,$74,$20, 16,0,0,0, 1,0, 1,0, $80,$BB,0,0, 0,$77,1,0, 2,0, 16,0, $64,$61,$74,$61, 0,0,0,0
 Pal:
   ; the VIC-II's 16 colours (Pepto's PAL measurements)
   Data.a $00,$00,$00, $FF,$FF,$FF, $68,$37,$2B, $70,$A4,$B2, $6F,$3D,$86, $58,$8D,$43, $35,$28,$79, $B8,$C7,$6F
