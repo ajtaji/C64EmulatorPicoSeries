@@ -250,8 +250,8 @@ Procedure ViewCia(x.f, y.f, w.f, h.f)
   For u = 0 To 1
     b = u * 4
     y = ViewHead(x, y, "CIA " + Str(u + 1) + " ($D" + StringField("C|D", u + 1, "|") + "00)" + StringField("   keyboard, joysticks, IRQ|   VIC bank, serial bus, NMI", u + 1, "|"))
-    y = ViewLine(x, y, "timer A " + RSet(Str(CiaTa(u)), 5) + " latch " + RSet(Str(CiaTaLatch(u)), 5) + "  CRA $" + Hex2(CiaCra(u)) + StringField("  stopped|  running", 1 + (CiaCra(u) & 1), "|") + StringField("| one-shot", 1 + ((CiaCra(u) >> 3) & 1), "|"))
-    y = ViewLine(x, y, "timer B " + RSet(Str(CiaTb(u)), 5) + " latch " + RSet(Str(CiaTbLatch(u)), 5) + "  CRB $" + Hex2(CiaCrb(u)) + StringField("  stopped|  running", 1 + (CiaCrb(u) & 1), "|") + "  counts " + StringField("cycles|CNT|timer A|timer A + CNT", 1 + ((CiaCrb(u) >> 5) & 3), "|"))
+    y = ViewLine(x, y, "timer A " + RSet(Str(TmCount(u * 2)), 5) + " latch " + RSet(Str(TmLatch(u * 2)), 5) + "  CRA $" + Hex2(CiaCra(u)) + StringField("  stopped|  running", 1 + (CiaCra(u) & 1), "|") + StringField("| one-shot", 1 + ((CiaCra(u) >> 3) & 1), "|"))
+    y = ViewLine(x, y, "timer B " + RSet(Str(TmCount(u * 2 + 1)), 5) + " latch " + RSet(Str(TmLatch(u * 2 + 1)), 5) + "  CRB $" + Hex2(CiaCrb(u)) + StringField("  stopped|  running", 1 + (CiaCrb(u) & 1), "|") + "  counts " + StringField("cycles|CNT|timer A|timer A + CNT", 1 + ((CiaCrb(u) >> 5) & 3), "|"))
     y = ViewLine(x, y, "ICR $" + Hex2(CiaIcr(u)) + "  mask $" + Hex2(CiaMask(u)) + "   PRA $" + Hex2(CiaPra(u)) + " DDRA $" + Hex2(CiaDdra(u)) + "   PRB $" + Hex2(CiaPrb(u)) + " DDRB $" + Hex2(CiaDdrb(u)))
     y = ViewLine(x, y, "TOD " + Hex2(CiaTod(b + 3) & $1F) + ":" + Hex2(CiaTod(b + 2)) + ":" + Hex2(CiaTod(b + 1)) + "." + Str(CiaTod(b)) + StringField(" am| pm", 1 + (CiaTod(b + 3) >> 7), "|") + "   alarm " + Hex2(CiaAlarm(b + 3)) + ":" + Hex2(CiaAlarm(b + 2)) + ":" + Hex2(CiaAlarm(b + 1)) + "." + Str(CiaAlarm(b)))
     y + 8 * s

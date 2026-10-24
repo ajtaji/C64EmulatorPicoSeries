@@ -2,25 +2,26 @@
 ; The two 6526 CIAs. Unit 0 is CIA 1 at $DC00 (keyboard, joysticks, IRQ),
 ; unit 1 is CIA 2 at $DD00 (VIC bank, serial bus, NMI).
 ;
-; The timers are counted lazily: each keeps the clock of its last update, and
-; CiaSync(unit, now) catches it up exactly - underflows, reloads, one-shot stops,
-; timer B counting timer A's underflows - whenever a register is touched and at
-; CiaNextEvent, the earliest underflow that can raise an interrupt.
+; THE TIMERS. Four of them, k = unit * 2 + (0 = A, 1 = B), each counted lazily to
+; the cycle: TmSync(k, now) catches a timer up whenever a register is touched and at
+; CiaNextEvent, the earliest moment something can raise an interrupt or a pending
+; control change falls due. The chip's own pipeline, as Wolfgang Lorenz's tests
+; measure it (Test Suite 2.15.txt: CIA1TB123, ONESHOT, FLIPOS, ICR01, IMR):
+;   - a count is a decrement at a cycle; after a write at cycle W, a new START or STOP
+;     applies to the counts from W+3 on (the counts at W+1 and W+2 follow the old state);
+;   - FORCE LOAD (and a high-byte write to a stopped timer) puts the latch in the
+;     counter at W+2, and there is no count at W+3;
+;   - an underflow reloads the latch and sets the ICR flag at that cycle; the
+;     interrupt bit (and the IRQ / NMI line) follows one cycle later; a one-shot timer
+;     stops there and its START bit reads 0 from that cycle.
 Global Dim CiaPra.i(2)
 Global Dim CiaPrb.i(2)
 Global Dim CiaDdra.i(2)
 Global Dim CiaDdrb.i(2)
-Global Dim CiaTa.i(2)
-Global Dim CiaTb.i(2)
-Global Dim CiaTaLatch.i(2)
-Global Dim CiaTbLatch.i(2)
 Global Dim CiaCra.i(2)
 Global Dim CiaCrb.i(2)
 Global Dim CiaIcr.i(2)
 Global Dim CiaMask.i(2)
-Global Dim CiaStamp.i(2)
-Global Dim CiaTaStart.i(2)
-Global Dim CiaTbStart.i(2)
 Global Dim CiaTod.i(8)
 Global Dim CiaTodLatch.i(8)
 Global Dim CiaAlarm.i(8)
@@ -28,36 +29,161 @@ Global Dim CiaTodLatched.i(2)
 Global Dim CiaTodStopped.i(2)
 Global Dim CiaTodDiv.i(2)
 Global Dim CiaSdr.i(2)
+; the timers
+Global Dim TmCount.i(4)
+Global Dim TmLatch.i(4)
+Global Dim TmRun.i(4)
+Global Dim TmStamp.i(4)
+Global Dim TmRunPend.i(4)
+Global Dim TmRunAt.i(4)
+Global Dim TmRunNew.i(4)
+Global Dim TmLoadPend.i(4)
+Global Dim TmLoadAt.i(4)
+Global Dim TmSkip.i(4)
+Global Dim TmUf.i(4)
+Global Dim TmUfCount.i(4)
 ; The keyboard: KeyRows(column) has a bit set for each pressed key's row.
 Global Dim KeyRows.i(8)
 Global Joy1.i, Joy2.i
-#CIA_START_DELAY = 2
-Global CiaTmpCount.i, CiaTmpStop.i, CiaTmpLast.i, CiaIrqDelay.i = 1, CiaIrDelay.i = 1
-; the clock of each timer's last underflow (the IR bit and the IRQ line follow it a cycle later)
-Global Dim CiaTaUf.i(2)
-Global Dim CiaTbUf.i(2)
+Global CiaIrDelay.i = 1, CiaLinesAt.i, CiaTmpCount.i, CiaTmpStop.i, CiaTmpLast.i
 #CIA_FAR = 1000000
 
+Procedure.i CiaTimerMode(k.i)
+  ; 0 counts cycles, 1 counts timer A's underflows (timer B's modes 2 and 3; CNT stays high), -1 counts nothing (CNT)
+  If k & 1
+    If CiaCrb(k >> 1) & $40 : ProcedureReturn 1 : EndIf
+    If CiaCrb(k >> 1) & $20 : ProcedureReturn -1 : EndIf
+    ProcedureReturn 0
+  EndIf
+  If CiaCra(k >> 1) & $20 : ProcedureReturn -1 : EndIf
+  ProcedureReturn 0
+EndProcedure
+Procedure.i CiaOneShot(k.i)
+  If k & 1 : ProcedureReturn (CiaCrb(k >> 1) >> 3) & 1 : EndIf
+  ProcedureReturn (CiaCra(k >> 1) >> 3) & 1
+EndProcedure
 
-; Is the interrupt bit up at clock now: a masked-in source whose flag is at
-; least CiaIrDelay cycles old (the timers'), or any other masked-in source.
+; n counts from count with this latch. The counter goes count, count-1, ... 0: the
+; cycle it reaches 0 is the underflow (the ICR flag; a one-shot timer stops there, its
+; latch loaded); a running timer shows the latch the cycle after, so the period is
+; latch + 1. Returns the underflows, the new value in CiaTmpCount, CiaTmpStop = 1 when
+; a one-shot timer stopped, CiaTmpLast = the count (1 .. n) of the last underflow.
+Procedure.i CiaCount(count.i, latch.i, n.i, oneshot.i)
+  Protected uf.i, period.i, rest.i
+  CiaTmpStop = 0
+  ; at 0 now (the underflow already counted): the latch comes next
+  If count = 0 : count = latch + 1 : EndIf
+  If n < count
+    CiaTmpCount = count - n
+    ProcedureReturn 0
+  EndIf
+  If oneshot
+    CiaTmpCount = latch : CiaTmpStop = 1 : CiaTmpLast = count
+    ProcedureReturn 1
+  EndIf
+  period = latch + 1
+  uf = 1 + (n - count) / period
+  rest = (n - count) % period
+  If rest = 0 : CiaTmpCount = 0 : Else : CiaTmpCount = latch + 1 - rest : EndIf
+  CiaTmpLast = count + (uf - 1) * period
+  ProcedureReturn uf
+EndProcedure
+
+; Underflows of timer k: the ICR flag, the one-shot stop, and timer B counting timer A's.
+Procedure TmUnderflow(k.i, at.i, many.i)
+  Protected u.i
+  u = k >> 1
+  TmUf(k) = at : TmUfCount(k) = TmUfCount(k) + many
+  CiaIcr(u) = CiaIcr(u) | (1 + (k & 1))
+EndProcedure
+
+; Count timer k through the cycles (from, upto]: n = how many of them count.
+Procedure TmCountSpan(k.i, from.i, upto.i)
+  Protected n.i, uf.i
+  n = upto - from
+  If n <= 0 : ProcedureReturn : EndIf
+  If TmSkip(k) - from > 0
+    ; the cycle after a load does not count
+    n = n - (TmSkip(k) - from)
+    If n <= 0 : ProcedureReturn : EndIf
+    from = TmSkip(k)
+  EndIf
+  If TmRun(k) = 0 Or CiaTimerMode(k) <> 0 : ProcedureReturn : EndIf
+  uf = CiaCount(TmCount(k), TmLatch(k), n, CiaOneShot(k))
+  TmCount(k) = CiaTmpCount
+  If uf
+    TmUnderflow(k, from + CiaTmpLast, uf)
+    If CiaTmpStop
+      TmRun(k) = 0 : TmRunPend(k) = 0
+      If k & 1 : CiaCrb(k >> 1) = CiaCrb(k >> 1) & $FE : Else : CiaCra(k >> 1) = CiaCra(k >> 1) & $FE : EndIf
+    EndIf
+  EndIf
+EndProcedure
+
+; Catch timer k up to clock now, through its pending start / stop / load.
+Procedure TmSync(k.i, now.i)
+  Protected t.i, guard.i
+  t = TmStamp(k)
+  While now - t > 0 And guard < 8
+    guard = guard + 1
+    If TmLoadPend(k) And TmLoadAt(k) - now <= 0 And (TmRunPend(k) = 0 Or TmLoadAt(k) - TmRunAt(k) <= 0)
+      TmCountSpan(k, t, TmLoadAt(k) - 1)
+      TmCount(k) = TmLatch(k) : TmLoadPend(k) = 0 : TmSkip(k) = TmLoadAt(k) + 1
+      t = TmLoadAt(k)
+    ElseIf TmRunPend(k) And TmRunAt(k) - now <= 0
+      TmCountSpan(k, t, TmRunAt(k))
+      t = TmRunAt(k)
+      TmRun(k) = TmRunNew(k) : TmRunPend(k) = 0
+    Else
+      TmCountSpan(k, t, now)
+      t = now
+    EndIf
+  Wend
+  TmStamp(k) = now
+EndProcedure
+
+; Timer B in cascade counts timer A's underflows: after A is caught up, B takes
+; the underflows A made since B last looked.
+Global Dim TmSeenA.i(2)
+Procedure CiaSync(unit.i, now.i)
+  Protected kb.i, n.i, uf.i
+  TmSync(unit * 2, now)
+  kb = unit * 2 + 1
+  If CiaTimerMode(kb) = 1
+    TmSync(kb, now)
+    n = TmUfCount(unit * 2) - TmSeenA(unit)
+    If n > 0 And TmRun(kb)
+      uf = CiaCount(TmCount(kb), TmLatch(kb), n, CiaOneShot(kb))
+      TmCount(kb) = CiaTmpCount
+      If uf
+        TmUnderflow(kb, TmUf(unit * 2), uf)
+        If CiaTmpStop : TmRun(kb) = 0 : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
+      EndIf
+    EndIf
+  Else
+    TmSync(kb, now)
+  EndIf
+  TmSeenA(unit) = TmUfCount(unit * 2)
+EndProcedure
+
+; Is a unit's interrupt bit up at clock now: a masked-in timer flag at least
+; CiaIrDelay cycles old, or any other masked-in source.
 Procedure.i CiaIrReady(unit.i, now.i)
   Protected f.i
   f = CiaIcr(unit) & CiaMask(unit) & $1F
   If f & $1C : ProcedureReturn 1 : EndIf
-  If (f & 1) And now - CiaTaUf(unit) >= CiaIrDelay : ProcedureReturn 1 : EndIf
-  If (f & 2) And now - CiaTbUf(unit) >= CiaIrDelay : ProcedureReturn 1 : EndIf
+  If (f & 1) And now - TmUf(unit * 2) >= CiaIrDelay : ProcedureReturn 1 : EndIf
+  If (f & 2) And now - TmUf(unit * 2 + 1) >= CiaIrDelay : ProcedureReturn 1 : EndIf
   ProcedureReturn 0
 EndProcedure
-Global CiaLinesAt.i
 ; When a unit's line rose: a timer's interrupt bit comes up a cycle after its
 ; underflow, even when the machine looks at it later; anything else, now.
 Procedure.i CiaAssertTime(unit.i)
   Protected f.i, t.i
   f = CiaIcr(unit) & CiaMask(unit) & $1F
   t = CiaLinesAt
-  If (f & 1) And CiaTaUf(unit) + CiaIrDelay - t < 0 : t = CiaTaUf(unit) + CiaIrDelay : EndIf
-  If (f & 2) And CiaTbUf(unit) + CiaIrDelay - t < 0 : t = CiaTbUf(unit) + CiaIrDelay : EndIf
+  If (f & 1) And TmUf(unit * 2) + CiaIrDelay - t < 0 : t = TmUf(unit * 2) + CiaIrDelay : EndIf
+  If (f & 2) And TmUf(unit * 2 + 1) + CiaIrDelay - t < 0 : t = TmUf(unit * 2 + 1) + CiaIrDelay : EndIf
   ProcedureReturn t
 EndProcedure
 Procedure CiaUpdateLines()
@@ -72,97 +198,44 @@ Procedure CiaUpdateLines()
   C64UpdateIrq(at)
 EndProcedure
 
-; Advance a counter by n cycles; returns the underflows, leaving the new value
-; in CiaTmpCount. One-shot timers stop at their first underflow (CiaTmpStop).
-Procedure.i CiaCount(count.i, latch.i, n.i, oneshot.i)
-  Protected rest.i, uf.i, period.i
-  CiaTmpStop = 0
-  If n <= count
-    CiaTmpCount = count - n
-    ProcedureReturn 0
-  EndIf
-  rest = n - count - 1
-  If oneshot
-    CiaTmpCount = latch : CiaTmpStop = 1 : CiaTmpLast = count + 1
-    ProcedureReturn 1
-  EndIf
-  period = latch + 1
-  uf = 1 + rest / period
-  CiaTmpCount = latch - (rest % period)
-  CiaTmpLast = count + 1 + (uf - 1) * period
-  ProcedureReturn uf
-EndProcedure
-
-Procedure CiaSync(unit.i, now.i)
-  Protected n.i, na.i, nb.i, d.i, ufa.i, ufb.i, tbmode.i
-  n = now - CiaStamp(unit)
-  If n <= 0 : ProcedureReturn : EndIf
-  ; a timer started recently counts only from its start clock
-  na = n : d = CiaTaStart(unit) - CiaStamp(unit)
-  If d > 0 : na = n - d : EndIf
-  nb = n : d = CiaTbStart(unit) - CiaStamp(unit)
-  If d > 0 : nb = n - d : EndIf
-  CiaStamp(unit) = now
-  ; keep the start clocks from falling behind the stamp (32-bit clock wrap)
-  If na > 0 : CiaTaStart(unit) = now : EndIf
-  If nb > 0 : CiaTbStart(unit) = now : EndIf
-  ufa = 0
-  If (CiaCra(unit) & $21) = 1 And na > 0
-    ufa = CiaCount(CiaTa(unit), CiaTaLatch(unit), na, CiaCra(unit) & 8)
-    CiaTa(unit) = CiaTmpCount
-    If CiaTmpStop : CiaCra(unit) = CiaCra(unit) & $FE : EndIf
-    If ufa : CiaIcr(unit) = CiaIcr(unit) | 1 : CiaTaUf(unit) = now - na + CiaTmpLast : EndIf
-  EndIf
-  If CiaCrb(unit) & 1
-    tbmode = (CiaCrb(unit) >> 5) & 3
-    ufb = 0
-    If tbmode = 0
-      If nb > 0
-        ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), nb, CiaCrb(unit) & 8)
-        CiaTb(unit) = CiaTmpCount
-        If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
-        If ufb : CiaTbUf(unit) = now - nb + CiaTmpLast : EndIf
-      EndIf
-    ElseIf tbmode >= 2 And ufa > 0
-      ufb = CiaCount(CiaTb(unit), CiaTbLatch(unit), ufa, CiaCrb(unit) & 8)
-      CiaTb(unit) = CiaTmpCount
-      If CiaTmpStop : CiaCrb(unit) = CiaCrb(unit) & $FE : EndIf
-      If ufb : CiaTbUf(unit) = CiaTaUf(unit) : EndIf
-    EndIf
-    If ufb : CiaIcr(unit) = CiaIcr(unit) | 2 : EndIf
-  EndIf
-EndProcedure
-
-; The earliest clock at which a timer underflow can raise an interrupt.
+; The earliest clock at which something can raise an interrupt or a pending control
+; change falls due: CiaNextEvent.
 Procedure CiaPlan(now.i)
-  Protected unit.i, best.i, t.i
+  Protected k.i, u.i, best.i, t.i, f.i
   best = now + #CIA_FAR
-  For unit = 0 To 1
-    If (CiaCra(unit) & $21) = 1
-      If CiaMask(unit) & 3
-        t = CiaStamp(unit)
-        If CiaTaStart(unit) - t > 0 : t = CiaTaStart(unit) : EndIf
-        t = t + CiaTa(unit) + 1
+  For k = 0 To 3
+    u = k >> 1
+    If TmRunPend(k)
+      t = TmRunAt(k) + 1
+      If t - best < 0 : best = t : EndIf
+    EndIf
+    If TmLoadPend(k)
+      t = TmLoadAt(k)
+      If t - best < 0 : best = t : EndIf
+    EndIf
+    If TmRun(k) And CiaTimerMode(k) = 0
+      ; this timer's next underflow matters when its interrupt is enabled, or timer B
+      ; counts it with B's interrupt enabled
+      If (CiaMask(u) & (1 + (k & 1))) Or ((k & 1) = 0 And CiaTimerMode(k + 1) = 1 And (CiaMask(u) & 2))
+        If TmCount(k) = 0 : t = TmStamp(k) + TmLatch(k) + 1 : Else : t = TmStamp(k) + TmCount(k) : EndIf
+        If TmSkip(k) - TmStamp(k) > 0 : t = t + TmSkip(k) - TmStamp(k) : EndIf
+        t = t + CiaIrDelay
         If t - best < 0 : best = t : EndIf
       EndIf
     EndIf
-    If (CiaCrb(unit) & $61) = 1 And (CiaMask(unit) & 2)
-      t = CiaStamp(unit)
-      If CiaTbStart(unit) - t > 0 : t = CiaTbStart(unit) : EndIf
-      t = t + CiaTb(unit) + 1
-      If t - best < 0 : best = t : EndIf
-    EndIf
   Next
-  best = best + CiaIrqDelay
   ; a flag already up whose interrupt bit is still a cycle away
-  For unit = 0 To 1
-    If (CiaIcr(unit) & CiaMask(unit) & 1) And CiaIrReady(unit, now) = 0
-      t = CiaTaUf(unit) + CiaIrDelay
-      If t - best < 0 : best = t : EndIf
-    EndIf
-    If (CiaIcr(unit) & CiaMask(unit) & 2) And CiaIrReady(unit, now) = 0
-      t = CiaTbUf(unit) + CiaIrDelay
-      If t - best < 0 : best = t : EndIf
+  For u = 0 To 1
+    f = CiaIcr(u) & CiaMask(u)
+    If (f & 3) <> 0 And CiaIrReady(u, now) = 0
+      If f & 1
+        t = TmUf(u * 2) + CiaIrDelay
+        If t - best < 0 : best = t : EndIf
+      EndIf
+      If f & 2
+        t = TmUf(u * 2 + 1) + CiaIrDelay
+        If t - best < 0 : best = t : EndIf
+      EndIf
     EndIf
   Next
   If best - now < 1 : best = now + 1 : EndIf
@@ -177,20 +250,24 @@ Procedure CiaSyncAll(now.i)
 EndProcedure
 
 Procedure CiaReset()
-  Protected u.i, i.i
+  Protected u.i, i.i, k.i
   For u = 0 To 1
     CiaPra(u) = 0 : CiaPrb(u) = 0 : CiaDdra(u) = 0 : CiaDdrb(u) = 0
-    CiaTa(u) = $FFFF : CiaTb(u) = $FFFF : CiaTaLatch(u) = $FFFF : CiaTbLatch(u) = $FFFF
-    CiaCra(u) = 0 : CiaCrb(u) = 0 : CiaIcr(u) = 0 : CiaMask(u) = 0 : CiaStamp(u) = C64Clock
-    CiaTaStart(u) = C64Clock : CiaTbStart(u) = C64Clock
+    CiaCra(u) = 0 : CiaCrb(u) = 0 : CiaIcr(u) = 0 : CiaMask(u) = 0
     CiaTodLatched(u) = 0 : CiaTodStopped(u) = 0 : CiaTodDiv(u) = 0 : CiaSdr(u) = 0
     For i = 0 To 3
       CiaTod(u * 4 + i) = 0 : CiaAlarm(u * 4 + i) = 0
     Next
     CiaTod(u * 4 + 3) = 1
+    TmSeenA(u) = 0
+  Next
+  For k = 0 To 3
+    TmCount(k) = $FFFF : TmLatch(k) = $FFFF : TmRun(k) = 0 : TmStamp(k) = C64Clock
+    TmRunPend(k) = 0 : TmLoadPend(k) = 0 : TmSkip(k) = C64Clock : TmUf(k) = C64Clock : TmUfCount(k) = 0
   Next
   For i = 0 To 7 : KeyRows(i) = 0 : Next
   Joy1 = 0 : Joy2 = 0
+  CiaLinesAt = C64Clock
   CiaUpdateLines()
   CiaPlan(C64Clock)
   VicBankChanged()
@@ -279,6 +356,7 @@ Procedure CiaFrameTick()
   Next
   CiaLinesAt = C64Clock
   CiaUpdateLines()
+  CiaPlan(C64Clock)
 EndProcedure
 
 Procedure.i CiaRead(unit.i, reg.i, now.i)
@@ -301,10 +379,10 @@ Procedure.i CiaRead(unit.i, reg.i, now.i)
   EndIf
   If reg = 2 : ProcedureReturn CiaDdra(unit) : EndIf
   If reg = 3 : ProcedureReturn CiaDdrb(unit) : EndIf
-  If reg = 4 : ProcedureReturn CiaTa(unit) & 255 : EndIf
-  If reg = 5 : ProcedureReturn (CiaTa(unit) >> 8) & 255 : EndIf
-  If reg = 6 : ProcedureReturn CiaTb(unit) & 255 : EndIf
-  If reg = 7 : ProcedureReturn (CiaTb(unit) >> 8) & 255 : EndIf
+  If reg = 4 : ProcedureReturn TmCount(unit * 2) & 255 : EndIf
+  If reg = 5 : ProcedureReturn (TmCount(unit * 2) >> 8) & 255 : EndIf
+  If reg = 6 : ProcedureReturn TmCount(unit * 2 + 1) & 255 : EndIf
+  If reg = 7 : ProcedureReturn (TmCount(unit * 2 + 1) >> 8) & 255 : EndIf
   If reg >= 8 And reg <= 11
     If reg = 11 And CiaTodLatched(unit) = 0
       CiaTodLatched(unit) = 1
@@ -334,8 +412,19 @@ Procedure.i CiaRead(unit.i, reg.i, now.i)
   ProcedureReturn CiaCrb(unit) & $EF
 EndProcedure
 
+; A control register write at clock now for timer k: start / stop and force load
+; through the chip's pipeline.
+Procedure TmControl(k.i, old.i, v.i, now.i)
+  If (v & 1) <> (old & 1)
+    TmRunPend(k) = 1 : TmRunAt(k) = now + 2 : TmRunNew(k) = v & 1
+  EndIf
+  If v & $10
+    TmLoadPend(k) = 1 : TmLoadAt(k) = now + 2
+  EndIf
+EndProcedure
+
 Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
-  Protected b.i, i.i
+  Protected b.i, i.i, k.i, old.i
   CiaSync(unit, now)
   CiaLinesAt = now
   b = unit * 4
@@ -350,16 +439,15 @@ Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
     If unit = 1 : VicBankChanged() : EndIf
   ElseIf reg = 3
     CiaDdrb(unit) = v
-  ElseIf reg = 4
-    CiaTaLatch(unit) = (CiaTaLatch(unit) & $FF00) | v
-  ElseIf reg = 5
-    CiaTaLatch(unit) = (CiaTaLatch(unit) & 255) | (v << 8)
-    If (CiaCra(unit) & 1) = 0 : CiaTa(unit) = CiaTaLatch(unit) : EndIf
-  ElseIf reg = 6
-    CiaTbLatch(unit) = (CiaTbLatch(unit) & $FF00) | v
-  ElseIf reg = 7
-    CiaTbLatch(unit) = (CiaTbLatch(unit) & 255) | (v << 8)
-    If (CiaCrb(unit) & 1) = 0 : CiaTb(unit) = CiaTbLatch(unit) : EndIf
+  ElseIf reg >= 4 And reg <= 7
+    k = unit * 2 + ((reg - 4) >> 1)
+    If reg & 1
+      TmLatch(k) = (TmLatch(k) & 255) | (v << 8)
+      ; the high byte loads a stopped timer (through the load pipeline)
+      If TmRun(k) = 0 And TmRunPend(k) = 0 : TmLoadPend(k) = 1 : TmLoadAt(k) = now + 2 : EndIf
+    Else
+      TmLatch(k) = (TmLatch(k) & $FF00) | v
+    EndIf
   ElseIf reg >= 8 And reg <= 11
     If reg = 11
       v = v & $9F
@@ -386,17 +474,13 @@ Procedure CiaWrite(unit.i, reg.i, v.i, now.i)
       CiaMask(unit) = CiaMask(unit) & (~(v & $1F))
     EndIf
   ElseIf reg = 14
-    If v & $10 : CiaTa(unit) = CiaTaLatch(unit) : EndIf
-    If (v & 1) <> 0 And (CiaCra(unit) & 1) = 0
-      CiaTaStart(unit) = now + #CIA_START_DELAY
-    EndIf
+    old = CiaCra(unit)
     CiaCra(unit) = v & $EF
+    TmControl(unit * 2, old, v, now)
   Else
-    If v & $10 : CiaTb(unit) = CiaTbLatch(unit) : EndIf
-    If (v & 1) <> 0 And (CiaCrb(unit) & 1) = 0
-      CiaTbStart(unit) = now + #CIA_START_DELAY
-    EndIf
+    old = CiaCrb(unit)
     CiaCrb(unit) = v & $EF
+    TmControl(unit * 2 + 1, old, v, now)
   EndIf
   CiaUpdateLines()
   CiaPlan(now)

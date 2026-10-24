@@ -131,7 +131,6 @@ For i = 0 To CountProgramParameters() - 1
 
     Case "--one" : BenchOne = 1
     Case "--roms" : i + 1 : romdir$ = ProgramParameter(i)
-    Case "--irqdelay" : i + 1 : CiaIrqDelay = Val(ProgramParameter(i))
   EndSelect
 Next
 
