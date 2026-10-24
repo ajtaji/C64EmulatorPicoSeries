@@ -33,12 +33,15 @@ Procedure SidSetCutoff()
   cut = ((SidReg($16) << 3) | (SidReg($15) & 7)) & $7FF
   ; cutoff in Hz, about 30 Hz .. 12 kHz across the 11 bits
   hz = 30 + (cut * 5860) / 1000
-  ; w = 2 sin(pi hz / fs) in Q12: xr = pi hz / fs in Q16, sin xr ~ xr - xr^3/6
-  xr = (hz * 4289) / 1000
+  ; the filter runs twice a sample (96 kHz): w = 2 sin(pi hz / 96000) in Q12;
+  ; xr = pi hz / 96000 in Q16, sin xr ~ xr - xr^3/6
+  xr = (hz * 4289) / 2000
   xc = (((xr * xr) >> 16) * xr) >> 16
   SidW = ((xr - xc / 6) * 2) >> 4
   ; damping 1/Q in Q12: 1.41 at resonance 0 down to about 0.3 at 15
   SidQ = 5793 - ((SidReg($17) >> 4) & 15) * 300
+  ; this filter form is stable only while w < 2 - 1/Q: keep inside it
+  If SidW > ((8192 - SidQ) * 7) / 8 : SidW = ((8192 - SidQ) * 7) / 8 : EndIf
 EndProcedure
 
 Procedure SidStepOf(v.i)
@@ -217,7 +220,10 @@ Procedure SidRun(now.i)
         direct = direct + o
       EndIf
     Next
-    ; filter (Q12 state-variable)
+    ; filter (Q12 state-variable, two steps a sample)
+    SidHp = filt - SidLp - ((SidBp * SidQ) >> 12)
+    SidBp = SidBp + ((SidW * SidHp) >> 12)
+    SidLp = SidLp + ((SidW * SidBp) >> 12)
     SidHp = filt - SidLp - ((SidBp * SidQ) >> 12)
     SidBp = SidBp + ((SidW * SidHp) >> 12)
     SidLp = SidLp + ((SidW * SidBp) >> 12)
