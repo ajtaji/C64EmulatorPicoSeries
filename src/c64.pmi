@@ -57,7 +57,7 @@ Declare SidRun(now.i)
 ; Both interrupt lines from their sources; at = the clock the change happened. A line that
 ; rises while the CPU runs ends the run window; C64RunTo then takes the interrupt when the
 ; 6510 would (see there).
-Procedure C64UpdateIrq(at.i)
+ProcedureRAM C64UpdateIrq(at.i)
   Protected nmi.i, irq.i
   irq = Bool(VicIrqActive() <> 0 Or Cia1Irq <> 0)
   If irq And C64IrqLine = 0
@@ -75,7 +75,7 @@ EndProcedure
 
 ; The PLA. Modes from LORAM/HIRAM/CHAREN (the port, inputs pulled high) and the
 ; cartridge's EXROM/GAME. RdMap/WrMap hold biased bases: PeekA(map + address).
-Procedure C64MapUpdate()
+ProcedureRAM C64MapUpdate()
   Protected lr.i, hr.i, ch.i, page.i, ram.i, basic.i, kernal.i, chars.i, romh.i, roml.i, io.i
   Protected rd8.i, rdA.i, rdD.i, rdE.i
   If C64FlatRam
@@ -147,7 +147,7 @@ EndProcedure
 ; Inputs: bits 0-2 and 4 are pulled up, bit 5 (the motor transistor) reads 0,
 ; and bits 3, 6 and 7 keep the level they last drove (nothing pulls them).
 Global PortHeld.i = $C8
-Procedure C64PortWrite(addr.i, v.i)
+ProcedureRAM C64PortWrite(addr.i, v.i)
   If addr = 0
     PortDdr = v & 255
   Else
@@ -159,7 +159,7 @@ Procedure C64PortWrite(addr.i, v.i)
   C64MapUpdate()
 EndProcedure
 
-Procedure.i C64IoRead(addr.i)
+ProcedureRAM.i C64IoRead(addr.i)
   Protected page.i
   page = (addr >> 8) & 255
   If page = 0
@@ -177,7 +177,7 @@ Procedure.i C64IoRead(addr.i)
   ProcedureReturn $FF
 EndProcedure
 
-Procedure C64IoWrite(addr.i, v.i)
+ProcedureRAM C64IoWrite(addr.i, v.i)
   Protected page.i
   page = (addr >> 8) & 255
   If page = 0
@@ -231,7 +231,7 @@ EndProcedure
 ; least 2 cycles before that instruction ended (3 for a taken branch that stays in
 ; its page); otherwise it runs the next instruction first. CLI, SEI and PLP change
 ; I after the check, so the check sees the I flag from before them.
-Procedure.i C64IrqDue(at.i)
+ProcedureRAM.i C64IrqDue(at.i)
   Protected need.i
   need = at + 2
   If CpuBr3At = CpuInstructions : need = need + 1 : EndIf
@@ -240,7 +240,7 @@ EndProcedure
 
 ; Run the CPU until the machine clock reaches t, taking interrupts between
 ; instructions as above and cutting a window at the next CIA event that can interrupt.
-Procedure C64RunTo(t.i)
+ProcedureRAM C64RunTo(t.i)
   Protected n.i, e.i, polled.i
   While t - C64Clock > 0
     If C64NmiPending
@@ -284,7 +284,7 @@ EndProcedure
 
 ; One raster line: the CPU up to the line's drawing point (cycle 14), the line
 ; drawn, a badline's 40 stolen cycles, the rest of the line less the sprites' DMA.
-Procedure C64RunLine()
+ProcedureRAM C64RunLine()
   VicStartLine()
   C64RunTo(C64LineStart + 14)
   VicDrawLine()

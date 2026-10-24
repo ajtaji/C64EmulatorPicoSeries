@@ -45,7 +45,7 @@ EndProcedure
 
 ; Everything here stays inside 32 bits (the Pico's integers): FREQ x cycles-per-sample in
 ; 24.8 fixed point is at most 65535 x 5464 (NTSC).
-Procedure SidStepOf(v.i)
+ProcedureRAM SidStepOf(v.i)
   SidStep(v) = ((SidReg(v * 7) | (SidReg(v * 7 + 1) << 8)) * (SidCps16 >> 8)) >> 8
 EndProcedure
 
@@ -64,14 +64,14 @@ Procedure SidReset()
   SidSetCutoff()
 EndProcedure
 
-Procedure.i SidRead(reg.i)
+ProcedureRAM.i SidRead(reg.i)
   If reg = $19 Or reg = $1A : ProcedureReturn $FF : EndIf
   If reg = $1B : ProcedureReturn SidOsc3 : EndIf
   If reg = $1C : ProcedureReturn SidEnv3 : EndIf
   ProcedureReturn 0
 EndProcedure
 
-Procedure SidWrite(reg.i, v.i)
+ProcedureRAM SidWrite(reg.i, v.i)
   Protected voice.i, old.i
   v = v & 255
   If reg > $18 : ProcedureReturn : EndIf
@@ -92,7 +92,7 @@ EndProcedure
 
 ; One envelope's step: rate counter in 16.16 cycles, the exponential divider
 ; for decay and release.
-Procedure SidEnvelope(v.i)
+ProcedureRAM SidEnvelope(v.i)
   Protected ctl.i, period.i, state.i, sus.i, env.i, ep.i
   state = SidEnvState(v)
   env = SidEnv(v)
@@ -133,7 +133,7 @@ Procedure SidEnvelope(v.i)
 EndProcedure
 
 ; The 12-bit waveform of voice v at its current accumulator.
-Procedure.i SidWave(v.i)
+ProcedureRAM.i SidWave(v.i)
   Protected ctl.i, acc.i, out.i, w.i, tri.i, src.i, n.i
   ctl = SidReg(v * 7 + 4)
   acc = SidAcc(v)
@@ -169,7 +169,7 @@ Procedure.i SidWave(v.i)
 EndProcedure
 
 ; Produce the samples due by machine clock now.
-Procedure SidRun(now.i)
+ProcedureRAM SidRun(now.i)
   Protected n.i, v.i, old.i, acc.i, i.i, mix.i, filt.i, direct.i, o.i, route.i, vol.i, mode.i, bit.i, k.i
   n = now - SidLast
   If n <= 0 : ProcedureReturn : EndIf

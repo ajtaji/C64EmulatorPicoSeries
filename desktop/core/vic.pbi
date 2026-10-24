@@ -207,15 +207,15 @@ Procedure VicCell(p.i, g.i, c.i, col.i, mode.i)
   Next
 EndProcedure
 
-Procedure VicSprites()
+Procedure.i VicSprites()
   Protected n.i, sx.i, pos.i, w.i, q.i, bits.i, sbits.i, xe.i, mc.i, prio.i, col.i, i.i, k.i, c.i
   Protected old.i, ss.i, sb.i, any.i, rep.i, j.i
   any = 0
   For n = 0 To 7
     If SprDisp(n) : any = 1 : EndIf
   Next
-  If any = 0 : ProcedureReturn : EndIf
-  For q = 0 To 447 : SprOcc(q) = 0 : Next
+  If any = 0 : ProcedureReturn 0 : EndIf
+  For q = 0 To #VIC_W - 1 : SprOcc(q) = 0 : Next
   ss = 0 : sb = 0
   For n = 7 To 0 Step -1
     If SprDisp(n)
@@ -287,6 +287,7 @@ Procedure VicSprites()
     VicSprBg = VicSprBg | sb
   EndIf
   If ss Or sb : C64UpdateIrq(C64Clock) : EndIf
+  ProcedureReturn 1
 EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and
@@ -321,17 +322,39 @@ Procedure VicDrawLine()
     bc = VicReg($20) & 15
     If VicVBorder
       For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
-      VicSprites()
-      For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
+      ; sprites still collide under the border: draw them, then the border over them
+      If VicSprites() : For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next : EndIf
     Else
       mode = ((VicReg($11) >> 4) & 6) | ((VicReg($16) >> 4) & 1)
       c = VicReg($21) & 15
       If mode >= 5 : c = 0 : EndIf
-      For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, c) : Next
       xs = VicReg($16) & 7
+      ; the scroll gap left of the first cell (every cell writes all its 8 pixels)
+      For i = 32 To 31 + xs : PokeA(VicOut + i, c) : Next
       cb = (VicReg($18) & $0E) << 10
       bb = (VicReg($18) & 8) << 10
-      If VicDisplay
+      If VicDisplay And mode = 0
+        ; standard text, the common case, inline
+        p = VicOut + 32 + xs
+        For i = 0 To 39
+          g = VicMem(cb + (VmLine(i) << 3) + VicRc)
+          If g = 0
+            PokeA(p, c) : PokeA(p + 1, c) : PokeA(p + 2, c) : PokeA(p + 3, c)
+            PokeA(p + 4, c) : PokeA(p + 5, c) : PokeA(p + 6, c) : PokeA(p + 7, c)
+          Else
+            col = ColLine(i) | 16
+            If g & $80 : PokeA(p, col) : Else : PokeA(p, c) : EndIf
+            If g & $40 : PokeA(p + 1, col) : Else : PokeA(p + 1, c) : EndIf
+            If g & $20 : PokeA(p + 2, col) : Else : PokeA(p + 2, c) : EndIf
+            If g & $10 : PokeA(p + 3, col) : Else : PokeA(p + 3, c) : EndIf
+            If g & 8 : PokeA(p + 4, col) : Else : PokeA(p + 4, c) : EndIf
+            If g & 4 : PokeA(p + 5, col) : Else : PokeA(p + 5, c) : EndIf
+            If g & 2 : PokeA(p + 6, col) : Else : PokeA(p + 6, c) : EndIf
+            If g & 1 : PokeA(p + 7, col) : Else : PokeA(p + 7, c) : EndIf
+          EndIf
+          p = p + 8
+        Next
+      ElseIf VicDisplay
         For i = 0 To 39
           c = VmLine(i) : col = ColLine(i)
           If mode & 2

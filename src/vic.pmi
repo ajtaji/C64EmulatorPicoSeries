@@ -29,7 +29,7 @@ Global VicDenSeen.i, VicVcBase.i, VicVc.i, VicRc.i, VicDisplay.i, VicVBorder.i =
 Global VicSprSpr.i, VicSprBg.i, VicViewY0.i = 15, VicViewH.i = 272
 Global VicOut.i, VicLinesDrawn.i
 
-Procedure.i VicIrqActive()
+ProcedureRAM.i VicIrqActive()
   ProcedureReturn VicIrqFlags & VicIrqMask & 15
 EndProcedure
 
@@ -67,13 +67,13 @@ Procedure VicReset()
   VicBankChanged()
 EndProcedure
 
-Procedure VicCompareCheck()
+ProcedureRAM VicCompareCheck()
   If VicRaster = VicCompare
     VicIrqFlags = VicIrqFlags | 1
   EndIf
 EndProcedure
 
-Procedure.i VicRead(reg.i)
+ProcedureRAM.i VicRead(reg.i)
   Protected v.i
   If reg = $11 : ProcedureReturn (VicReg($11) & $7F) | ((VicRaster & $100) >> 1) : EndIf
   If reg = $12 : ProcedureReturn VicRaster & 255 : EndIf
@@ -98,7 +98,7 @@ Procedure.i VicRead(reg.i)
   ProcedureReturn VicReg(reg)
 EndProcedure
 
-Procedure VicWrite(reg.i, v.i)
+ProcedureRAM VicWrite(reg.i, v.i)
   Protected old.i
   v = v & 255
   If reg = $11 Or reg = $12
@@ -124,7 +124,7 @@ Procedure VicWrite(reg.i, v.i)
   If reg < $2F : VicReg(reg) = v : EndIf
 EndProcedure
 
-Procedure.i VicBadCondition()
+ProcedureRAM.i VicBadCondition()
   If VicRaster >= $30 And VicRaster <= $F7 And VicDenSeen
     If (VicRaster & 7) = (VicReg($11) & 7) : ProcedureReturn 1 : EndIf
   EndIf
@@ -133,7 +133,7 @@ EndProcedure
 
 ; Cycle 0: the raster counter moves on, the raster compare, the badline, and
 ; the cycles the sprites' DMA takes from the CPU on this line.
-Procedure VicStartLine()
+ProcedureRAM VicStartLine()
   Protected n.i, count.i
   VicRaster = VicLine
   If VicRaster = 0 : VicDenSeen = 0 : EndIf
@@ -151,7 +151,7 @@ Procedure VicStartLine()
 EndProcedure
 
 ; Eight pixels of one cell. g is the graphics byte; mode as $D011/$D016 select.
-Procedure VicCell(p.i, g.i, c.i, col.i, mode.i)
+ProcedureRAM VicCell(p.i, g.i, c.i, col.i, mode.i)
   Protected i.i, f.i, b.i, q.i, k.i
   If mode = 0 Or mode = 4 Or (mode = 1 And (col & 8) = 0) Or mode = 2 Or mode = 6 Or (mode = 5 And (col & 8) = 0)
     ; hires: a set bit is the foreground colour
@@ -206,15 +206,15 @@ Procedure VicCell(p.i, g.i, c.i, col.i, mode.i)
   Next
 EndProcedure
 
-Procedure VicSprites()
+ProcedureRAM.i VicSprites()
   Protected n.i, sx.i, pos.i, w.i, q.i, bits.i, sbits.i, xe.i, mc.i, prio.i, col.i, i.i, k.i, c.i
   Protected old.i, ss.i, sb.i, any.i, rep.i, j.i
   any = 0
   For n = 0 To 7
     If SprDisp(n) : any = 1 : EndIf
   Next
-  If any = 0 : ProcedureReturn : EndIf
-  For q = 0 To 447 : SprOcc(q) = 0 : Next
+  If any = 0 : ProcedureReturn 0 : EndIf
+  For q = 0 To #VIC_W - 1 : SprOcc(q) = 0 : Next
   ss = 0 : sb = 0
   For n = 7 To 0 Step -1
     If SprDisp(n)
@@ -286,11 +286,12 @@ Procedure VicSprites()
     VicSprBg = VicSprBg | sb
   EndIf
   If ss Or sb : C64UpdateIrq(C64Clock) : EndIf
+  ProcedureReturn 1
 EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and
 ; border, then the sprites' MCBASE steps of cycles 15 and 16.
-Procedure VicDrawLine()
+ProcedureRAM VicDrawLine()
   Protected i.i, n.i, mode.i, p.i, g.i, c.i, col.i, mb.i, cb.i, bb.i, idle.i, xs.i, bc.i, lft.i, rgt.i, vy.i
   Protected top.i, bottom.i, visible.i
   If VicRaster = $30 And (VicReg($11) & $10) : VicDenSeen = 1 : EndIf
@@ -320,17 +321,39 @@ Procedure VicDrawLine()
     bc = VicReg($20) & 15
     If VicVBorder
       For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
-      VicSprites()
-      For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next
+      ; sprites still collide under the border: draw them, then the border over them
+      If VicSprites() : For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, bc) : Next : EndIf
     Else
       mode = ((VicReg($11) >> 4) & 6) | ((VicReg($16) >> 4) & 1)
       c = VicReg($21) & 15
       If mode >= 5 : c = 0 : EndIf
-      For i = 0 To #VIC_W - 1 : PokeA(VicOut + i, c) : Next
       xs = VicReg($16) & 7
+      ; the scroll gap left of the first cell (every cell writes all its 8 pixels)
+      For i = 32 To 31 + xs : PokeA(VicOut + i, c) : Next
       cb = (VicReg($18) & $0E) << 10
       bb = (VicReg($18) & 8) << 10
-      If VicDisplay
+      If VicDisplay And mode = 0
+        ; standard text, the common case, inline
+        p = VicOut + 32 + xs
+        For i = 0 To 39
+          g = VicMem(cb + (VmLine(i) << 3) + VicRc)
+          If g = 0
+            PokeA(p, c) : PokeA(p + 1, c) : PokeA(p + 2, c) : PokeA(p + 3, c)
+            PokeA(p + 4, c) : PokeA(p + 5, c) : PokeA(p + 6, c) : PokeA(p + 7, c)
+          Else
+            col = ColLine(i) | 16
+            If g & $80 : PokeA(p, col) : Else : PokeA(p, c) : EndIf
+            If g & $40 : PokeA(p + 1, col) : Else : PokeA(p + 1, c) : EndIf
+            If g & $20 : PokeA(p + 2, col) : Else : PokeA(p + 2, c) : EndIf
+            If g & $10 : PokeA(p + 3, col) : Else : PokeA(p + 3, c) : EndIf
+            If g & 8 : PokeA(p + 4, col) : Else : PokeA(p + 4, c) : EndIf
+            If g & 4 : PokeA(p + 5, col) : Else : PokeA(p + 5, c) : EndIf
+            If g & 2 : PokeA(p + 6, col) : Else : PokeA(p + 6, c) : EndIf
+            If g & 1 : PokeA(p + 7, col) : Else : PokeA(p + 7, c) : EndIf
+          EndIf
+          p = p + 8
+        Next
+      ElseIf VicDisplay
         For i = 0 To 39
           c = VmLine(i) : col = ColLine(i)
           If mode & 2
@@ -371,7 +394,7 @@ EndProcedure
 
 ; Cycles 55-58: the sprites' expansion flip-flops, DMA start, MC and display,
 ; their sbits fetched for the next line; RC and VCBASE.
-Procedure VicEndLine()
+ProcedureRAM VicEndLine()
   Protected n.i, ye.i, ptr.i, mb.i, adr.i
   mb = (VicReg($18) & $F0) << 6
   For n = 0 To 7
