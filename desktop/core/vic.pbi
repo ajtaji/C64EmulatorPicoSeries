@@ -40,6 +40,8 @@ Global Dim PairW.l(4)
 ; left 0), MP3(n) the mask of its pair-3 pixels; MCKey says which colours MCTab was built for
 Global Dim MCTab.l(16)
 Global Dim MP3.l(16)
+; multicolour foreground (pairs 2 and 3) of a nibble, for the black invalid modes
+Global Dim MPFg.l(16)
 Global MCKey.i = -1
 Global Dim SprPos.i(8)
 Global Dim SprEnd.i(8)
@@ -79,6 +81,10 @@ Procedure VicReset()
     If (i >> 2) = 3 : m = m | $FFFF : EndIf
     If (i & 3) = 3 : m = m | $FFFF0000 : EndIf
     MP3(i) = m
+    m = 0
+    If i & 8 : m = m | $FFFF : EndIf
+    If i & 2 : m = m | $FFFF0000 : EndIf
+    MPFg(i) = m
   Next
   MCKey = -1
   For i = 0 To 63 : VicReg(i) = 0 : Next
@@ -368,6 +374,32 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
     Next
     ProcedureReturn
   EndIf
+  ; the invalid modes (ECM with MCM or BMM) are black: a cell is only its foreground mask
+  If mode >= 5 And VicDisplay
+    For i = 0 To 39
+      c = VmLine(i) : col = ColLine(i)
+      If mode = 6
+        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+      ElseIf mode = 7
+        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+      Else
+        g = VicMem(cb + ((c & $3F) << 3) + VicRc)
+      EndIf
+      If mode = 7 Or (mode = 5 And (col & 8) <> 0)
+        w0 = MPFg((g >> 4) & 15) & $10101010 : w1 = MPFg(g & 15) & $10101010
+      Else
+        w0 = Mask4((g >> 4) & 15) & $10101010 : w1 = Mask4(g & 15) & $10101010
+      EndIf
+      If xs = 0
+        PokeL(gp, w0) : PokeL(gp + 4, w1)
+      Else
+        PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
+        PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+      EndIf
+      gp = gp + 8
+    Next
+    ProcedureReturn
+  EndIf
   If VicDisplay = 0
     If mode & 4 : g = VicMem($39FF) : Else : g = VicMem($3FFF) : EndIf
   EndIf
@@ -420,6 +452,19 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
       w0 = (m & f) | ((~m) & b)
       m = Mask4(g & 15)
       w1 = (m & f) | ((~m) & b)
+    EndIf
+    If VicDisplay = 0
+      ; idle: every cell of the line is the same pattern
+      For k = 0 To 39
+        If xs = 0
+          PokeL(gp, w0) : PokeL(gp + 4, w1)
+        Else
+          PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
+          PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
+        EndIf
+        gp = gp + 8
+      Next
+      ProcedureReturn
     EndIf
     If xs = 0
       PokeL(gp, w0) : PokeL(gp + 4, w1)
