@@ -17,3 +17,5 @@ private/
 *.cycles.txt
 __pycache__/
 build/
+# the desktop program's own settings (ROM folder of this machine)
+*.prefs
