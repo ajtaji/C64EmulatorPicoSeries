@@ -35,6 +35,10 @@ Global VicOut.i, VicLinesDrawn.i, VicSprActive.i = 1
 Global Dim Mask4.l(16)
 ; a multicolour cell's four colours, each doubled into a 2-pixel half-word
 Global Dim PairW.l(4)
+; this line's sprites: span start / end in the line buffer, and whether another sprite's span meets it
+Global Dim SprPos.i(8)
+Global Dim SprEnd.i(8)
+Global Dim SprLap.i(8)
 
 Procedure.i VicIrqActive()
   ProcedureReturn VicIrqFlags & VicIrqMask & 15
@@ -167,83 +171,95 @@ Procedure VicStartLine()
 EndProcedure
 
 Procedure.i VicSprites()
-  Protected n.i, sx.i, pos.i, w.i, q.i, bits.i, sbits.i, xe.i, mc.i, prio.i, col.i, i.i, k.i, c.i
-  Protected old.i, ss.i, sb.i, any.i, rep.i, j.i
+  Protected n.i, m.i, pos.i, wid.i, q.i, sbits.i, rep.i, mc.i, prio.i, col.i, i.i, k.i, c.i
+  Protected old.i, ss.i, sb.i, any.i, j.i, lap.i, occ.i, bit.i, c1.i, c3.i
+  If VicSprActive = 0 : ProcedureReturn 0 : EndIf
   any = 0
-  For n = 0 To 7
-    If SprDisp(n) : any = 1 : EndIf
-  Next
-  If any = 0 : ProcedureReturn 0 : EndIf
-  ; clear the collision buffer only where a sprite can be (up to 48 pixels from its X)
   For n = 0 To 7
     If SprDisp(n)
       pos = (VicReg(n * 2) | (((VicReg($10) >> n) & 1) << 8)) + 8
       If pos >= 504 : pos = pos - 504 : EndIf
-      w = pos + 48
-      If w > #VIC_W : w = #VIC_W : EndIf
-      For q = pos To w - 1 : SprOcc(q) = 0 : Next
+      SprPos(n) = pos
+      SprEnd(n) = pos + (24 << ((VicReg($1D) >> n) & 1))
+      any = any + 1
+    EndIf
+  Next
+  If any = 0 : ProcedureReturn 0 : EndIf
+  ; sprite-sprite collisions need the occupancy buffer only where two sprites' spans meet
+  For n = 0 To 7
+    SprLap(n) = 0
+    If SprDisp(n) And any > 1
+      For m = 0 To 7
+        If m <> n And SprDisp(m)
+          If SprPos(m) < SprEnd(n) And SprPos(n) < SprEnd(m) : SprLap(n) = 1 : EndIf
+        EndIf
+      Next
+      If SprLap(n)
+        q = SprEnd(n) : If q > #VIC_W : q = #VIC_W : EndIf
+        For i = SprPos(n) To q - 1 : SprOcc(i) = 0 : Next
+      EndIf
     EndIf
   Next
   ss = 0 : sb = 0
+  c1 = VicReg($25) & 15 : c3 = VicReg($26) & 15
   For n = 7 To 0 Step -1
-    If SprDisp(n)
-      sx = VicReg(n * 2) | (((VicReg($10) >> n) & 1) << 8)
-      pos = sx + 8
-      If pos >= 504 : pos = pos - 504 : EndIf
-      sbits = SprData(n)
-      xe = (VicReg($1D) >> n) & 1
-      mc = (VicReg($1C) >> n) & 1
-      prio = (VicReg($1B) >> n) & 1
-      col = VicReg($27 + n) & 15
-      rep = 1 + xe
-      If mc
-        rep = rep * 2
-        For i = 0 To 11
-          k = (sbits >> (22 - i * 2)) & 3
-          If k
-            If k = 1
-              c = VicReg($25) & 15
-            ElseIf k = 2
-              c = col
-            Else
-              c = VicReg($26) & 15
+    If SprDisp(n) = 0 : Continue : EndIf
+    sbits = SprData(n)
+    If sbits = 0 : Continue : EndIf
+    pos = SprPos(n) : lap = SprLap(n) : bit = 1 << n
+    rep = 1 + ((VicReg($1D) >> n) & 1)
+    mc = (VicReg($1C) >> n) & 1
+    prio = (VicReg($1B) >> n) & 1
+    col = VicReg($27 + n) & 15
+    If mc
+      rep = rep * 2
+      For i = 0 To 11
+        k = (sbits >> (22 - i * 2)) & 3
+        If k
+          If k = 1 : c = c1 : ElseIf k = 2 : c = col : Else : c = c3 : EndIf
+          q = pos + i * rep
+          For j = 1 To rep
+            If q < #VIC_W
+              If lap
+                occ = SprOcc(q)
+                If occ : ss = ss | occ | bit : EndIf
+                SprOcc(q) = occ | bit
+              EndIf
+              old = PeekA(VicOut + q)
+              If old & 16
+                sb = sb | bit
+                If prio = 0 : PokeA(VicOut + q, c | 16) : EndIf
+              Else
+                PokeA(VicOut + q, c)
+              EndIf
             EndIf
-            For j = 0 To rep - 1
-              q = pos + i * rep + j
-              If q < #VIC_W
-                If SprOcc(q) : ss = ss | SprOcc(q) | (1 << n) : EndIf
-                SprOcc(q) = SprOcc(q) | (1 << n)
-                old = PeekA(VicOut + q)
-                If old & 16
-                  sb = sb | (1 << n)
-                  If prio = 0 : PokeA(VicOut + q, c | 16) : EndIf
-                Else
-                  PokeA(VicOut + q, c)
-                EndIf
+            q = q + 1
+          Next
+        EndIf
+      Next
+    Else
+      For i = 0 To 23
+        If sbits & ($800000 >> i)
+          q = pos + i * rep
+          For j = 1 To rep
+            If q < #VIC_W
+              If lap
+                occ = SprOcc(q)
+                If occ : ss = ss | occ | bit : EndIf
+                SprOcc(q) = occ | bit
               EndIf
-            Next
-          EndIf
-        Next
-      Else
-        For i = 0 To 23
-          If sbits & ($800000 >> i)
-            For j = 0 To rep - 1
-              q = pos + i * rep + j
-              If q < #VIC_W
-                If SprOcc(q) : ss = ss | SprOcc(q) | (1 << n) : EndIf
-                SprOcc(q) = SprOcc(q) | (1 << n)
-                old = PeekA(VicOut + q)
-                If old & 16
-                  sb = sb | (1 << n)
-                  If prio = 0 : PokeA(VicOut + q, col | 16) : EndIf
-                Else
-                  PokeA(VicOut + q, col)
-                EndIf
+              old = PeekA(VicOut + q)
+              If old & 16
+                sb = sb | bit
+                If prio = 0 : PokeA(VicOut + q, col | 16) : EndIf
+              Else
+                PokeA(VicOut + q, col)
               EndIf
-            Next
-          EndIf
-        Next
-      EndIf
+            EndIf
+            q = q + 1
+          Next
+        EndIf
+      Next
     EndIf
   Next
   If ss
@@ -289,6 +305,43 @@ Procedure VicCells(mode.i, xs.i, cb.i, bb.i)
         PokeL(gp + 4, (m & f) | ((~m) & b))
       Else
         PokeL(gp, b) : PokeL(gp + 4, b)
+      EndIf
+      gp = gp + 8
+    Next
+    ProcedureReturn
+  EndIf
+  ; multicolour text (and its hires cells) and multicolour bitmap: the colours that are the
+  ; same for the whole line are set once
+  If (mode = 1 Or mode = 3) And VicDisplay
+    b = bg0 * $01010101
+    PairW(0) = bg0 * $0101
+    If mode = 1
+      PairW(1) = (VicReg($22) & 15) * $0101 : PairW(2) = ((VicReg($23) & 15) | 16) * $0101
+    EndIf
+    For i = 0 To 39
+      c = VmLine(i) : col = ColLine(i)
+      If mode = 1
+        g = VicMem(cb + (c << 3) + VicRc)
+        If col & 8
+          PairW(3) = ((col & 7) | 16) * $0101
+          w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
+          w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
+        Else
+          f = ((col & 7) | 16) * $01010101
+          m = Mask4((g >> 4) & 15) : w0 = (m & f) | ((~m) & b)
+          m = Mask4(g & 15) : w1 = (m & f) | ((~m) & b)
+        EndIf
+      Else
+        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+        PairW(1) = (c >> 4) * $0101 : PairW(2) = ((c & 15) | 16) * $0101 : PairW(3) = ((col & 15) | 16) * $0101
+        w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
+        w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
+      EndIf
+      If xs = 0
+        PokeL(gp, w0) : PokeL(gp + 4, w1)
+      Else
+        PokeA(gp, w0) : PokeA(gp + 1, w0 >> 8) : PokeA(gp + 2, w0 >> 16) : PokeA(gp + 3, w0 >> 24)
+        PokeA(gp + 4, w1) : PokeA(gp + 5, w1 >> 8) : PokeA(gp + 6, w1 >> 16) : PokeA(gp + 7, w1 >> 24)
       EndIf
       gp = gp + 8
     Next

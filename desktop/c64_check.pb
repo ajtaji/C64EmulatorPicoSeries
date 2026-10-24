@@ -118,7 +118,7 @@ Procedure SaveShot(path$)
   SaveImage(img, path$, #PB_ImagePlugin_BMP)
 EndProcedure
 
-Define wav$, i.i, arg$, mode$, first$ = " start", romdir$, frames.i = 100000, prg$, d64$, type$, shot$
+Define joy$, wav$, i.i, arg$, mode$, first$ = " start", romdir$, frames.i = 100000, prg$, d64$, type$, shot$
 Define t.q, cyc.q, size.i, *basic, *kernal, *chars, *prg, *d64, st.i
 OpenConsole()
 For i = 0 To CountProgramParameters() - 1
@@ -133,6 +133,7 @@ For i = 0 To CountProgramParameters() - 1
     Case "--type" : i + 1 : type$ = ProgramParameter(i)
     Case "--shot" : i + 1 : shot$ = ProgramParameter(i)
     Case "--wav" : i + 1 : wav$ = ProgramParameter(i)
+    Case "--joy" : i + 1 : joy$ + ProgramParameter(i) + " "
     Case "--ntsc" : C64SetStandard(0)
     Case "--demo" : mode$ = "demo"
 
@@ -229,7 +230,13 @@ If mode$ = "boot"
     C64TypeText(*tx)
   EndIf
   t = ElapsedMilliseconds()
+  Define jn.i, jf.i, jm.i, jk.i
   For i = 1 To frames
+    Joy2 = 0
+    For jk = 1 To CountString(joy$, " ")
+      jf = Val(StringField(StringField(joy$, jk, " "), 1, ":")) : jm = Val(StringField(StringField(joy$, jk, " "), 2, ":"))
+      If i >= jf And i < jf + 10 : Joy2 | jm : EndIf
+    Next
     C64LoaderFrame()
     C64RunFrame()
   Next
