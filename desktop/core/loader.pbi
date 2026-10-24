@@ -209,8 +209,13 @@ Procedure.i D64Directory(dest.i)
     p = LoadPut(p, c)
   Next
   p = LoadPut(p, 34) : p = LoadPut(p, 32)
-  p = LoadPut(p, PeekA(bam + $A2)) : p = LoadPut(p, PeekA(bam + $A3)) : p = LoadPut(p, 32)
-  p = LoadPut(p, PeekA(bam + $A5)) : p = LoadPut(p, PeekA(bam + $A6)) : p = LoadPut(p, 0)
+  ; the ID and DOS type, shifted spaces ($A0) sent as spaces, as the 1541 does
+  For i = 0 To 4
+    c = PeekA(bam + $A2 + i)
+    If c = $A0 : c = 32 : EndIf
+    p = LoadPut(p, c)
+  Next
+  p = LoadPut(p, 0)
   M(line) = p & 255 : M((line + 1) & $FFFF) = p >> 8
   trk = 18 : sec = 1
   While trk <> 0 And guard < 20

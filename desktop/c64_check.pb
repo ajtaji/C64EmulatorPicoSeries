@@ -235,6 +235,9 @@ If mode$ = "boot"
   Next
   t = ElapsedMilliseconds() - t
   Print(ScreenText())
+  Define zz.i, zs$
+  For zz = $73 To $8A : zs$ + RSet(Hex(M(zz)), 2, "0") + " " : Next
+  PrintN("ZP73 " + zs$)
   PrintN("PERF cpu_us=" + Str(PerfCpuUs) + " vic_us=" + Str(PerfVicUs) + " sid_us=" + Str(PerfSidUs))
   PrintN("BOOT frames=" + Str(frames) + " ms=" + Str(t) + " instructions=" + Str(CpuInstructions) + " pc=$" + Hex(PC) + " stopped=" + Str(Stopped) + " loads=" + Str(LoadCount) + " sid_samples=" + Str(SidSamples))
   If shot$ : SaveShot(shot$) : EndIf
