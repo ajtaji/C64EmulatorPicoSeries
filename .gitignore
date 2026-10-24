@@ -1,0 +1,18 @@
+# Copyrighted ROMs, disk images and private wrappers never go in git.
+roms/
+private/
+*.d64
+*.D64
+*.crt
+*.rom
+*.bin
+# build outputs
+*.exe
+*.uf2.asm
+*.uf2.dbg
+*.uf2.sym
+*.uf2.sym.meta
+*.build.log
+*.stderr.log
+*.cycles.txt
+__pycache__/
