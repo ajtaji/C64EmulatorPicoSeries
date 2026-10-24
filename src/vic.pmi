@@ -47,6 +47,9 @@ Global MCKey.i = -1
 ; for the background colours 0-2 in TxKey. Rebuilt when the line's mode or colours differ.
 Global Dim TxTab.l(256)
 Global TxKey.i = -1
+; tables built this frame: past 4 (raster bars changing the background every few lines) a line is
+; drawn cell by cell instead
+Global TxBuilds.i, TxRasterSeen.i
 Global Dim SprPos.i(8)
 Global Dim SprEnd.i(8)
 Global Dim SprLap.i(8)
@@ -365,10 +368,14 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
   ; the line's character data: one 2 KB set inside one 4 KB block of the VIC's bank
   chp = VicMap((cb >> 12) & 3) + cb + VicRc
   ; standard and multicolour text: two table words a cell
+  k = bg0
+  If mode = 1 : k = k | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8) | $10000 : EndIf
   If mode <= 1 And VicDisplay
-    k = bg0
-    If mode = 1 : k = k | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8) | $10000 : EndIf
-    If k <> TxKey : VicTxBuild(k) : EndIf
+    If VicRaster < TxRasterSeen : TxBuilds = 0 : EndIf
+    TxRasterSeen = VicRaster
+    If k <> TxKey And TxBuilds < 4 : VicTxBuild(k) : TxBuilds = TxBuilds + 1 : EndIf
+  EndIf
+  If mode <= 1 And VicDisplay And k = TxKey
     If sh = 0
       For i = 0 To 39
         g = PeekA(chp + (VmLine(i) << 3))
