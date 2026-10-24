@@ -1,0 +1,15 @@
+bt_audio: reconnected with the stored key (no pairing)
+BT AUDIO rc=0
+>>> expect 'BT AUDIO rc=': ok
+C64_STATUS frames=51 us=1017450 emu_us=992082 worst_us=27249 kips=309 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=60872 sid=48836 bt_live=1 bt_under=0 bt_packets=118 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017452 emu_us=963580 worst_us=19420 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=8552 sid=48838 bt_live=1 bt_under=0 bt_packets=243 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017448 emu_us=963897 worst_us=19406 kips=311 lines_made=13872 lines_out=13865 lcd_frames=51 vid_wait_us=8570 sid=48838 bt_live=1 bt_under=0 bt_packets=369 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017451 emu_us=962676 worst_us=19869 kips=311 lines_made=13872 lines_out=13875 lcd_frames=51 vid_wait_us=7445 sid=48838 bt_live=1 bt_under=0 bt_packets=494 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017450 emu_us=961662 worst_us=19309 kips=311 lines_made=13872 lines_out=13869 lcd_frames=51 vid_wait_us=6864 sid=48840 bt_live=1 bt_under=0 bt_packets=620 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017449 emu_us=960786 worst_us=19296 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=5917 sid=48838 bt_live=1 bt_under=0 bt_packets=745 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017452 emu_us=960169 worst_us=19483 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=6301 sid=48838 bt_live=1 bt_under=0 bt_packets=883 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017449 emu_us=959691 worst_us=19442 kips=311 lines_made=13872 lines_out=13869 lcd_frames=51 vid_wait_us=9480 sid=48838 bt_live=1 bt_under=0 bt_packets=1008 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017449 emu_us=958644 worst_us=19345 kips=311 lines_made=13872 lines_out=13868 lcd_frames=51 vid_wait_us=8632 sid=48838 bt_live=1 bt_under=0 bt_packets=1134 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017450 emu_us=961427 worst_us=19551 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=8169 sid=48840 bt_live=1 bt_under=0 bt_packets=1260 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017451 emu_us=961946 worst_us=19465 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=7165 sid=48838 bt_live=1 bt_under=0 bt_packets=1385 pc=$C0FE stop=0 late=0 loads=0
+C64_STATUS frames=51 us=1017450 emu_us=960339 worst_us=19414 kips=311 lines_made=13872 lines_out=13872 lcd_frames=51 vid_wait_us=5440 sid=48838 bt_live=1 bt_under=0 bt_packets=1511 pc=$C0FE stop=0 late=0 loads=0

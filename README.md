@@ -63,7 +63,8 @@ Measured on the Pico W (COM7, 200 MHz, the time split from the firmware's status
 No late frame in any of these runs (`docs/board-rott-pmdemo-4.log`). The VIC-II time includes any
 wait for core 1 to take lines from the ring: at BASIC, with little else to do, that is 5 ms a frame.
 
-A PAL frame is 19.95 ms. The 6510 runs 1.6 M instructions/s (a C64 needs about 0.3 M). On the Pico W
+With the Bluetooth speaker playing (A2DP, SBC stereo 48 kHz, encoded on core 1) the demo holds
+51 frames/s, worst frame 19.6 ms, no buffer underrun (`docs/board-audio-picow.log`). A PAL frame is 19.95 ms. The 6510 runs 1.6 M instructions/s (a C64 needs about 0.3 M). On the Pico W
 the SID is synthesised at 24 kHz and each sample written twice into the 48 kHz stream.
 
 ROMs and programs go in the C64's flash region ($1F0000, 60 KB):

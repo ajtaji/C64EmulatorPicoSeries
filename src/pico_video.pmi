@@ -3,7 +3,10 @@
 ; Core 0's VIC writes each line as 384 colour indices into a ring of 32 lines
 ; (PlatformLine / PlatformLineDone). Core 1 turns them into RGB565, four lines
 ; to a buffer, two buffers, and sends them with SPI0's DMA while it converts
-; the next. A frame opens the panel's window at its first line, so a dropped
+; the next. It converts two pixels a table read (PalPair: two colours -> two
+; RGB565 halfwords in one word): a pixel at a time took about half of core 1,
+; and with the radio's SBC encoding on the same core it fell behind (45
+; frames/s, the speaker starved). A frame opens the panel's window at its first line, so a dropped
 ; or late line can never shift the picture: the window is re-opened at the
 ; line that comes next whenever the sequence breaks.
 ;
@@ -19,7 +22,9 @@
 Global Dim LineRing.l(#VID_RING * #VID_W / 4)
 Global Dim LineTag.i(#VID_RING)
 Global Dim Pal565.u(32)
-Global Dim DmaBuf.u(2 * #VID_BATCH * #VID_W)
+Global Dim PalPair.l(256)
+; words, so the converter stores two pixels at a time on an aligned address
+Global Dim DmaBuf.l(#VID_BATCH * #VID_W)
 Global LinesMade.i, LinesSent.i, VidWaitUs.i, VidDropped.i
 Global VidOpen.i, VidNextRow.i, VidBusy.i, VidCur.i, VidPending.i, VidPendingLines.i
 Global VidFrames.i, VidLinesOut.i, VidSkip.i
@@ -37,6 +42,8 @@ Procedure VideoBegin()
     Pal565(i) = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
     Pal565(i + 16) = Pal565(i)
   Next
+  ; PalPair(a | b << 4): pixel a then pixel b (the lower address first)
+  For i = 0 To 255 : PalPair(i) = Pal565(i & 15) | (Pal565(i >> 4) << 16) : Next
   SpiPeriFromSys(#CLOCK_KHZ)
   SpiBegin(0, 2, 3, -1, 100000)
   Tft796Begin(0, 5, 6, 7) : Tft796Rotate(1) : Tft796Fill(0)
@@ -91,8 +98,8 @@ EndProcedure
 
 ; Convert up to #VID_BATCH consecutive lines into buffer VidCur.
 ProcedureRAM.i VidConvert()
-  Protected n.i, slot.i, src.i, dst.i, i.i, tag.i
-  dst = @DmaBuf(VidCur * #VID_BATCH * #VID_W)
+  Protected n.i, slot.i, src.i, dst.i, i.i, tag.i, w.i
+  dst = @DmaBuf(VidCur * #VID_BATCH * #VID_W / 2)
   n = 0
   While n < #VID_BATCH And LinesSent <> PeekL(@LinesMade)
     slot = LinesSent & (#VID_RING - 1)
@@ -100,9 +107,12 @@ ProcedureRAM.i VidConvert()
     If tag <> VidNextRow + n : Break : EndIf
     VidFence()
     src = @LineRing(0) + slot * #VID_W
-    For i = 0 To #VID_W - 1
-      PokeU(dst, Pal565(PeekA(src + i)))
-      dst = dst + 2
+    ; four pixels a word read (bit 4, the foreground flag, is dropped by the masks)
+    For i = 0 To #VID_W / 4 - 1
+      w = PeekL(src)
+      PokeL(dst, PalPair((w & 15) | ((w >> 4) & $F0)))
+      PokeL(dst + 4, PalPair(((w >> 16) & 15) | ((w >> 20) & $F0)))
+      src = src + 4 : dst = dst + 8
     Next
     VidFence()
     LinesSent = LinesSent + 1
@@ -125,7 +135,7 @@ ProcedureRAM VideoPoll()
     VidBusy = 0
   EndIf
   If VidPending
-    VidDmaStart(@DmaBuf(VidCur * #VID_BATCH * #VID_W), VidPendingLines * #VID_W)
+    VidDmaStart(@DmaBuf(VidCur * #VID_BATCH * #VID_W / 2), VidPendingLines * #VID_W)
     VidNextRow = VidNextRow + VidPendingLines
     VidLinesOut = VidLinesOut + VidPendingLines
     VidCur = 1 - VidCur : VidBusy = 1 : VidPending = 0
