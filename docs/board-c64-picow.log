@@ -1,0 +1,3 @@
+> RP2040 ASSEMBLER: 83020 bytes of code run from SRAM at $20000000-$2001444B, copied from flash at boot; 57740 bytes of SRAM left free, stacks and reserved windows excluded.
+ROM_TOTAL_RP2040|130396|2097152
+image ends at 0x1001FE00

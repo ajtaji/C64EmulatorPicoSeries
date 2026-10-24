@@ -287,6 +287,7 @@ Procedure ViewTests(x.f, y.f, w.f, h.f)
 EndProcedure
 
 Declare OpenProgram(path$)
+Declare InsertDisk(path$)
 Procedure ViewFilesRefresh(folder$)
   Protected d.i
   If folder$ = "" : ProcedureReturn : EndIf
@@ -320,7 +321,11 @@ Procedure ViewPrograms(x.f, y.f, w.f, h.f)
     f$ = PathRequester("Choose a folder of .PRG and .D64 files", ViewFolder$)
     If f$ <> "" : ViewFilesRefresh(f$) : EndIf
   EndIf
-  Neon_Text(*Neon_FontSmall, x + 250 * s, y + 4 * s, Neon_FitText(*Neon_FontSmall, ViewFolder$, w - 270 * s), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
+  If Neon_Button(x + 246 * s, y, 150 * s, 24 * s, "Swap disk (no reset)...")
+    f$ = OpenFileRequester("Put a disk in drive 8", ViewFolder$, "C64 disks (*.d64)|*.d64|All files|*.*", 0)
+    If f$ <> "" : InsertDisk(f$) : EndIf
+  EndIf
+  Neon_Text(*Neon_FontSmall, x + 404 * s, y + 4 * s, Neon_FitText(*Neon_FontSmall, ViewFolder$, w - 424 * s), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
   y + 32 * s
   Neon_ListBegin(7, x, y, w - 20 * s, h - 76 * s, 22 * s, @ViewFilesTop)
   ForEach ViewFiles()

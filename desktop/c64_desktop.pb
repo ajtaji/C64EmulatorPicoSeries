@@ -185,6 +185,16 @@ Procedure OpenProgram(path$)
   Paused = 0
 EndProcedure
 
+; A disk into drive 8 while the machine runs (a game's second disk): no reset.
+Procedure InsertDisk(path$)
+  Protected *m, size.i
+  *m = ReadWhole(path$, @size)
+  If *m = 0 : StatusLine$ = "Cannot open " + path$ : ProcedureReturn : EndIf
+  *Disk = *m : DiskSize = size
+  C64InsertD64(*Disk, DiskSize)
+  StatusLine$ = GetFilePart(path$) + " is in drive 8"
+EndProcedure
+
 Procedure ViewRunTests()
   Protected t.q = ElapsedMilliseconds(), first$ = " start", *nm, frames.i
   ViewTestLog$ = "" : BenchFailures = 0 : BenchTests = 0 : BenchFinished = 0
