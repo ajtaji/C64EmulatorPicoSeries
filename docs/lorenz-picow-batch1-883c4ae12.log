@@ -1,0 +1,338 @@
+pmfc: C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\src\tests\lorenz1.picow  ->  RP2040
+> Intrinsics for RP2040: rp2040_hardware.def
+[DEBUG] Attempting to load intrinsics from: C:\Users\ajtaj\Desktop\Github\PureBasicCode\OpenGl Work\ArduinoBasic\RP2040\Intrinsics\rp2040_hardware.def
+> Loaded 6993 register names from rp2040_registers.def
+> Loaded Hardware Intrinsics from rp2040_hardware.def
+pmfc: pin aliases from Boards/Raspberry_Pi_Pico_W.board
+> ReserveRegister: 6 reservation(s) on RP2040
+> RESERVE PC -> r8 (.i, 4 bytes, reg 8, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE A -> r9 (.i, 4 bytes, reg 9, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Res -> r10 (.i, 4 bytes, reg 10, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Left -> r11 (.i, 4 bytes, reg 11, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE X -> r4 (.i, 4 bytes, reg 4, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Pg -> r5 (.i, 4 bytes, reg 5, span 1) at cpu6510.pmi line 21 (included)
+> F_CPU = 200000000 Hz, from the board's ClockSpeed - delay_ms and the baud divisors follow it.
+> ReserveRegister proof (RP2040): 54988 lines, 84 routines; core 0 reaches 37396 instructions, core 1 0, interrupt handlers 36 - r12 and r4-r7 hold
+pmfc: 54988 lines of assembly
+pmfc: wrote C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\fin-w-lorenz1.uf2.asm
+> RP2040 ASSEMBLER: Starting Pass 1 (Resolving Labels)...
+> RP2040 ASSEMBLER: 82040 bytes of code run from SRAM at $20000000-$20014077, copied from flash at boot; 110612 bytes of SRAM left free, stacks and reserved windows excluded.
+> RP2040 ASSEMBLER: branch relaxation converged in 3 rounds.
+> RP2040 ASSEMBLER: Starting Pass 2 (Generating Machine Code)...
+> RP2040 ASSEMBLER: Wrote cycle-timing listing to C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\fin-w-lorenz1.cycles.txt
+> RP2040 ASSEMBLER: Writing raw binary to C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\fin-w-lorenz1.uf2
+[TELEMETRY_START]
+ROM_TOTAL_RP2040|192688|2097152
+CYCLES_TOTAL_RP2040|63729|straight-line, not-taken branches
+REGMAP_RP2040|9455|72|18|311|materialisations seen|already in dest|already in another reg|nearby constant
+SLOTMAP_RP2040|89|frame-slot loads taken from a register
+[TELEMETRY_END]
+pmfc: fin-w-lorenz1.uf2 is named .uf2, so the image is written as a UF2, exactly as an upload packs it: Packed 192688 bytes into 753 blocks -> C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\fin-w-lorenz1.uf2
+pmfc: wrote C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\fin-w-lorenz1.uf2
+pmfc: uploading fin-w-lorenz1.uf2 (RP2040) through COM7
+> [UF2] fin-w-lorenz1.uf2 is a ready UF2: 753 blocks for the RP2040 (Pico / Pico W), family ID 0xE48BFF56, writing 0x10000000 to 0x1002F0FF. It is sent exactly as it is: it is not packed again, and the file is not changed.
+> [NATIVE UPLOADER] Sending BOOTSEL reset command to COM7 (the 1200-baud touch)...
+> [NATIVE UPLOADER] COM7 left the bus after the 1200-baud touch (0.0 s): the board is going to its boot loader.
+> [NATIVE UPLOADER] Waiting for matching BOOTSEL drive: RPI-RP2 (RP2040)...
+> [NATIVE UPLOADER] Found BOOTSEL drive at J:\
+> [NATIVE UPLOADER] Writing image: 65536 of 385536 bytes (16%)
+> [NATIVE UPLOADER] Writing image: 131072 of 385536 bytes (33%)
+> [NATIVE UPLOADER] Writing image: 196608 of 385536 bytes (50%)
+> [NATIVE UPLOADER] Writing image: 262144 of 385536 bytes (67%)
+> [NATIVE UPLOADER] Writing image: 327680 of 385536 bytes (84%)
+> [NATIVE UPLOADER] Writing image: 385536 of 385536 bytes (100%)
+> [NATIVE UPLOADER] Writing image: 385536 of 385536 bytes (100%)
+> [NATIVE UPLOADER] Wrote fin-w-lorenz1.uf2 to J:\
+> [NATIVE UPLOADER] FLASH COMPLETE! Board will reboot into the new firmware automatically.
+> [NATIVE UPLOADER] Serial monitor: board found on COM7 (USB vendor ID 2E8A), on the same USB connection it was flashed through.
+pmfc: reading COM7 at 9600 baud for 480 s (the port opened 2 ms after the upload, attempt 1).
+C64 LORENZ batch 1 of 3 clk_khz=200000
+
+Commodore 64 Emulator Test Suite
+Public Domain, no Copyright
+
+basic commands - ok
+ldab
+ldab - ok
+ldaz
+ldaz - ok
+ldazx
+ldazx - ok
+ldaa
+ldaa - ok
+ldaax
+ldaax - ok
+ldaay
+ldaay - ok
+ldaix
+ldaix - ok
+ldaiy
+ldaiy - ok
+staz
+staz - ok
+stazx
+stazx - ok
+staa
+staa - ok
+staax
+staax - ok
+staay
+staay - ok
+staix
+staix - ok
+staiy
+staiy - ok
+ldxb
+ldxb - ok
+ldxz
+ldxz - ok
+ldxzy
+ldxzy - ok
+ldxa
+ldxa - ok
+ldxay
+ldxay - ok
+stxz
+stxz - ok
+stxzy
+stxzy - ok
+stxa
+stxa - ok
+ldyb
+ldyb - ok
+ldyz
+ldyz - ok
+ldyzx
+ldyzx - ok
+ldya
+ldya - ok
+ldyax
+ldyax - ok
+styz
+styz - ok
+styzx
+styzx - ok
+stya
+stya - ok
+taxn
+taxn - ok
+tayn
+tayn - ok
+txan
+txan - ok
+tyan
+tyan - ok
+tsxn
+tsxn - ok
+txsn
+txsn - ok
+phan
+phan - ok
+plan
+plan - ok
+phpn
+phpn - ok
+plpn
+plpn - ok
+inxn
+inxn - ok
+inyn
+inyn - ok
+dexn
+dexn - ok
+deyn
+deyn - ok
+incz
+incz - ok
+inczx
+inczx - ok
+inca
+inca - ok
+incax
+incax - ok
+decz
+decz - ok
+deczx
+deczx - ok
+deca
+deca - ok
+decax
+decax - ok
+asln
+asln - ok
+aslz
+aslz - ok
+aslzx
+aslzx - ok
+asla
+asla - ok
+aslax
+aslax - ok
+lsrn
+lsrn - ok
+lsrz
+lsrz - ok
+lsrzx
+lsrzx - ok
+lsra
+lsra - ok
+lsrax
+lsrax - ok
+roln
+roln - ok
+rolz
+rolz - ok
+rolzx
+rolzx - ok
+rola
+rola - ok
+rolax
+rolax - ok
+rorn
+rorn - ok
+rorz
+rorz - ok
+rorzx
+rorzx - ok
+rora
+rora - ok
+rorax
+rorax - ok
+andb
+andb - ok
+andz
+andz - ok
+andzx
+andzx - ok
+anda
+anda - ok
+andax
+andax - ok
+anday
+anday - ok
+andix
+andix - ok
+andiy
+andiy - ok
+orab
+orab - ok
+oraz
+oraz - ok
+orazx
+orazx - ok
+oraa
+oraa - ok
+oraax
+oraax - ok
+oraay
+oraay - ok
+oraix
+oraix - ok
+oraiy
+oraiy - ok
+eorb
+eorb - ok
+eorz
+eorz - ok
+eorzx
+eorzx - ok
+eora
+eora - ok
+eorax
+eorax - ok
+eoray
+eoray - ok
+eorix
+eorix - ok
+eoriy
+eoriy - ok
+clcn
+clcn - ok
+secn
+secn - ok
+cldn
+cldn - ok
+sedn
+sedn - ok
+clin
+clin - ok
+sein
+sein - ok
+clvn
+clvn - ok
+adcb
+adcb - ok
+adcz
+adcz - ok
+adczx
+adczx - ok
+adca
+adca - ok
+adcax
+adcax - ok
+adcay
+adcay - ok
+adcix
+adcix - ok
+adciy
+adciy - ok
+sbcb
+sbcb - ok
+sbcz
+sbcz - ok
+sbczx
+sbczx - ok
+sbca
+sbca - ok
+sbcax
+sbcax - ok
+sbcay
+sbcay - ok
+sbcix
+sbcix - ok
+sbciy
+sbciy - ok
+cmpb
+cmpb - ok
+cmpz
+cmpz - ok
+cmpzx
+cmpzx - ok
+cmpa
+cmpa - ok
+cmpax
+cmpax - ok
+cmpay
+cmpay - ok
+cmpix
+cmpix - ok
+cmpiy
+cmpiy - ok
+cpxb
+cpxb - ok
+cpxz
+cpxz - ok
+cpxa
+cpxa - ok
+cpyb
+cpyb - ok
+cpyz
+cpyz - ok
+cpya
+cpya - ok
+bitz
+bitz - ok
+bita
+bita - ok
+brkn
+brkn - ok
+rtin
+rtin - ok
+jsrw
+jsrw - ok
+rtsnLORENZ_NEXT rtsn
+
+LORENZ_RESULT batch=1 tests=140 failures=0 instructions=607985140 cycles=2114602703 us=379088685 kips=1603
+
+pmfc: read COM7 for 480 s: 2739 bytes.
+pmfc: OK
