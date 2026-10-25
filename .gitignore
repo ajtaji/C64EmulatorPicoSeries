@@ -19,3 +19,16 @@ __pycache__/
 build/
 # the desktop program's own settings (ROM folder of this machine)
 *.prefs
+# Third-party test suites (not public domain: bring your own copy - README, "Testing")
+tests/lorenz/
+src/tests/lorenz_data*
+# firmware images and board logs built from them
+*.uf2
+*.uf2.board.log
+*.uf2.upload.log
+*.uf2.capture.txt
+*.uf2.regions
+# not committed: the publishing notes for the repository's page
+PUBLISH-META.txt
+# the published firmware (ROM-free: built-in demo; ROMs come from the board's flash store)
+!firmware/*.uf2

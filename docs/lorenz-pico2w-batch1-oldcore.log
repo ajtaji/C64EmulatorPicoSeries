@@ -1,0 +1,339 @@
+pmfc: src/tests/lorenz1.pico2w (the previous commit's core, a copy of it)  ->  RP2350
+> Intrinsics for RP2350: rp2350_hardware.def
+[DEBUG] Attempting to load intrinsics from: C:\Users\ajtaj\Desktop\Github\PureBasicCode\OpenGl Work\ArduinoBasic\RP2350\Intrinsics\rp2350_hardware.def
+> Loaded 12442 register names from rp2350_registers.def
+> Loaded Hardware Intrinsics from rp2350_hardware.def
+pmfc: pin aliases from Boards/Raspberry_Pi_Pico_2_W.board
+> ReserveRegister: 6 reservation(s) on RP2350
+> RESERVE PC -> r8 (.i, 4 bytes, reg 8, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE A -> r9 (.i, 4 bytes, reg 9, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Res -> r10 (.i, 4 bytes, reg 10, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Left -> r11 (.i, 4 bytes, reg 11, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE X -> r4 (.i, 4 bytes, reg 4, span 1) at cpu6510.pmi line 21 (included)
+> RESERVE Pg -> r5 (.i, 4 bytes, reg 5, span 1) at cpu6510.pmi line 21 (included)
+> F_CPU = 150000000 Hz, from the board's ClockSpeed - delay_ms and the baud divisors follow it.
+> ReserveRegister proof (RP2350): 51439 lines, 79 routines; core 0 reaches 34202 instructions, core 1 0, interrupt handlers 20 - r12 and r4-r7 hold
+pmfc: 51439 lines of assembly
+pmfc: wrote C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\p2-base-lorenz1.uf2.asm
+> RP2350 ASSEMBLER: Starting Pass 1 (Resolving Labels)...
+> RP2350 ASSEMBLER: 79188 bytes of code run from SRAM at $20000000-$20013553, copied from flash at boot; 375516 bytes of SRAM left free, stacks and reserved windows excluded.
+> RP2350 ASSEMBLER: branch relaxation converged in 7 rounds.
+> RP2350 ASSEMBLER: Starting Pass 2 (Generating Machine Code)...
+> RP2350 ASSEMBLER: Wrote cycle-timing listing to C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\p2-base-lorenz1.cycles.txt
+> RP2350 ASSEMBLER: Writing raw binary to C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\p2-base-lorenz1.uf2
+[TELEMETRY_START]
+ROM_TOTAL_RP2350|188136|4194304
+CYCLES_TOTAL_RP2350|59897|straight-line, not-taken branches
+REGMAP_RP2350|8767|106|17|332|materialisations seen|already in dest|already in another reg|nearby constant
+SLOTMAP_RP2350|88|frame-slot loads taken from a register
+[TELEMETRY_END]
+pmfc: p2-base-lorenz1.uf2 is named .uf2, so the image is written as a UF2, exactly as an upload packs it: Packed 188136 bytes into 735 blocks -> C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\p2-base-lorenz1.uf2
+pmfc: wrote C:\Users\ajtaj\Desktop\Github\C64EmulatorPicoSeries\build\p2-base-lorenz1.uf2
+pmfc: uploading p2-base-lorenz1.uf2 (RP2350) through COM6
+> [UF2] p2-base-lorenz1.uf2 is a ready UF2: 735 blocks for the RP2350's Arm cores (Pico 2 / Pico 2 W), family ID 0xE48BFF59, writing 0x10000000 to 0x1002DEFF. It is sent exactly as it is: it is not packed again, and the file is not changed.
+> [NATIVE UPLOADER] A BOOTSEL drive is already present at H:\. It is not the board on COM6 (that board is running a program, so it has no boot drive yet) and is left alone; the program goes only to the drive that appears after COM6 is reset.
+> [NATIVE UPLOADER] Sending BOOTSEL reset command to COM6 (the 1200-baud touch)...
+> [NATIVE UPLOADER] COM6 left the bus after the 1200-baud touch (0.0 s): the board is going to its boot loader.
+> [NATIVE UPLOADER] Waiting for matching BOOTSEL drive: RP2350 (Pico 2)...
+> [NATIVE UPLOADER] The boot drive at I:\ carries the board's serial 3D00D889CF7F499A.
+> [NATIVE UPLOADER] Found BOOTSEL drive at I:\
+> [NATIVE UPLOADER] Writing image: 65536 of 376320 bytes (17%)
+> [NATIVE UPLOADER] Writing image: 131072 of 376320 bytes (34%)
+> [NATIVE UPLOADER] Writing image: 196608 of 376320 bytes (52%)
+> [NATIVE UPLOADER] Writing image: 262144 of 376320 bytes (69%)
+> [NATIVE UPLOADER] Writing image: 327680 of 376320 bytes (87%)
+> [NATIVE UPLOADER] Writing image: 376320 of 376320 bytes (100%)
+> [NATIVE UPLOADER] Wrote p2-base-lorenz1.uf2 to I:\
+> [NATIVE UPLOADER] FLASH COMPLETE! Board will reboot into the new firmware automatically.
+> [NATIVE UPLOADER] Serial monitor: board found on COM6 (USB vendor ID 2E8A), on the same USB connection it was flashed through.
+pmfc: reading COM6 at 9600 baud for 600 s (the port opened 2 ms after the upload, attempt 1).
+C64 LORENZ batch 1 of 3 clk_khz=150000
+
+Commodore 64 Emulator Test Suite
+Public Domain, no Copyright
+
+basic commands - ok
+ldab
+ldab - ok
+ldaz
+ldaz - ok
+ldazx
+ldazx - ok
+ldaa
+ldaa - ok
+ldaax
+ldaax - ok
+ldaay
+ldaay - ok
+ldaix
+ldaix - ok
+ldaiy
+ldaiy - ok
+staz
+staz - ok
+stazx
+stazx - ok
+staa
+staa - ok
+staax
+staax - ok
+staay
+staay - ok
+staix
+staix - ok
+staiy
+staiy - ok
+ldxb
+ldxb - ok
+ldxz
+ldxz - ok
+ldxzy
+ldxzy - ok
+ldxa
+ldxa - ok
+ldxay
+ldxay - ok
+stxz
+stxz - ok
+stxzy
+stxzy - ok
+stxa
+stxa - ok
+ldyb
+ldyb - ok
+ldyz
+ldyz - ok
+ldyzx
+ldyzx - ok
+ldya
+ldya - ok
+ldyax
+ldyax - ok
+styz
+styz - ok
+styzx
+styzx - ok
+stya
+stya - ok
+taxn
+taxn - ok
+tayn
+tayn - ok
+txan
+txan - ok
+tyan
+tyan - ok
+tsxn
+tsxn - ok
+txsn
+txsn - ok
+phan
+phan - ok
+plan
+plan - ok
+phpn
+phpn - ok
+plpn
+plpn - ok
+inxn
+inxn - ok
+inyn
+inyn - ok
+dexn
+dexn - ok
+deyn
+deyn - ok
+incz
+incz - ok
+inczx
+inczx - ok
+inca
+inca - ok
+incax
+incax - ok
+decz
+decz - ok
+deczx
+deczx - ok
+deca
+deca - ok
+decax
+decax - ok
+asln
+asln - ok
+aslz
+aslz - ok
+aslzx
+aslzx - ok
+asla
+asla - ok
+aslax
+aslax - ok
+lsrn
+lsrn - ok
+lsrz
+lsrz - ok
+lsrzx
+lsrzx - ok
+lsra
+lsra - ok
+lsrax
+lsrax - ok
+roln
+roln - ok
+rolz
+rolz - ok
+rolzx
+rolzx - ok
+rola
+rola - ok
+rolax
+rolax - ok
+rorn
+rorn - ok
+rorz
+rorz - ok
+rorzx
+rorzx - ok
+rora
+rora - ok
+rorax
+rorax - ok
+andb
+andb - ok
+andz
+andz - ok
+andzx
+andzx - ok
+anda
+anda - ok
+andax
+andax - ok
+anday
+anday - ok
+andix
+andix - ok
+andiy
+andiy - ok
+orab
+orab - ok
+oraz
+oraz - ok
+orazx
+orazx - ok
+oraa
+oraa - ok
+oraax
+oraax - ok
+oraay
+oraay - ok
+oraix
+oraix - ok
+oraiy
+oraiy - ok
+eorb
+eorb - ok
+eorz
+eorz - ok
+eorzx
+eorzx - ok
+eora
+eora - ok
+eorax
+eorax - ok
+eoray
+eoray - ok
+eorix
+eorix - ok
+eoriy
+eoriy - ok
+clcn
+clcn - ok
+secn
+secn - ok
+cldn
+cldn - ok
+sedn
+sedn - ok
+clin
+clin - ok
+sein
+sein - ok
+clvn
+clvn - ok
+adcb
+adcb - ok
+adcz
+adcz - ok
+adczx
+adczx - ok
+adca
+adca - ok
+adcax
+adcax - ok
+adcay
+adcay - ok
+adcix
+adcix - ok
+adciy
+adciy - ok
+sbcb
+sbcb - ok
+sbcz
+sbcz - ok
+sbczx
+sbczx - ok
+sbca
+sbca - ok
+sbcax
+sbcax - ok
+sbcay
+sbcay - ok
+sbcix
+sbcix - ok
+sbciy
+sbciy - ok
+cmpb
+cmpb - ok
+cmpz
+cmpz - ok
+cmpzx
+cmpzx - ok
+cmpa
+cmpa - ok
+cmpax
+cmpax - ok
+cmpay
+cmpay - ok
+cmpix
+cmpix - ok
+cmpiy
+cmpiy - ok
+cpxb
+cpxb - ok
+cpxz
+cpxz - ok
+cpxa
+cpxa - ok
+cpyb
+cpyb - ok
+cpyz
+cpyz - ok
+cpya
+cpya - ok
+bitz
+bitz - ok
+bita
+bita - ok
+brkn
+brkn - ok
+rtin
+rtin - ok
+jsrw
+jsrw - ok
+rtsnLORENZ_NEXT rtsn
+
+LORENZ_RESULT batch=1 tests=140 failures=0 instructions=607985140 cycles=2114602703 us=407825381 kips=1490
+
+pmfc: read COM6 for 600 s: 2739 bytes.
+pmfc: OK
