@@ -248,7 +248,7 @@ tools/      generators, the flash-store packer, board scripts
 docs/       measurement logs and notes
 ```
 
-## Licence
+## Credits and licences
 
 MIT (see `LICENSE`). No third-party code is included. The 6510's undocumented opcodes follow the
 public documentation of the NMOS 6502 family; the VIC-II's timing follows Christian Bauer's article
