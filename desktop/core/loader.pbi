@@ -27,7 +27,7 @@ Procedure C64SetRoms(basic.i, kernal.i, chars.i)
   Protected i.i
   For i = 0 To 8191 : RomBasic(i) = PeekA(basic + i) : RomKernal(i) = PeekA(kernal + i) : Next
   For i = 0 To 4095 : RomChar(i) = PeekA(chars + i) : Next
-  C64RomsLoaded = 1
+  C64RomsLoaded = 1 : BenchRomsIn = 0
   LoadTrapOn = 0 : LoadTrapAt = 0
   If RomKernal(#TRAP_LOAD - $E000) = $85 And RomKernal(#TRAP_LOAD - $E000 + 1) = $93
     RomKernal(#TRAP_LOAD - $E000) = $02
@@ -362,6 +362,9 @@ Procedure.i C64TrapLoad()
 EndProcedure
 
 Procedure.i C64Trap(addr.i)
+  If BenchRomsIn
+    If BenchStub(addr) : ProcedureReturn 1 : EndIf
+  EndIf
   If BenchMode : ProcedureReturn BenchTrap(addr) : EndIf
   If addr = LoadTrapAt And LoadTrapOn : ProcedureReturn C64TrapLoad() : EndIf
   ProcedureReturn 0

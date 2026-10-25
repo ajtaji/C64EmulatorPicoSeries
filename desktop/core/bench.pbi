@@ -2,9 +2,12 @@
 ; Lorenz's test suite on the WHOLE machine: the CIA, interrupt, timing and
 ; banking tests that follow trap17 need real CIAs, a VIC and the PLA, so they
 ; run here with stand-in ROMs that hold only what Christer Palm's test bench
-; gives a test: the KERNAL's IRQ entry at $FF48, the vectors, BASIC's warm start
-; vector at $A002 -> $8000, and $02 traps at $FFD2 (print), $E16F (load the
-; next test), $FFE4 (a failed test waits for a key), $8000 / $A474 (finished).
+; gives a test: the vectors, BASIC's warm start vector at $A002 -> $8000, and
+; $02 traps the host answers: $FFD2 (print), $E16F (load the next test), $FFE4
+; (a failed test waits for a key), $8000 / $A474 (finished), and the interrupt
+; entries and exits a KERNAL has - $FF48 (IRQ / BRK entry), $EA31 (IRQ exit),
+; $FE43 (NMI entry), $FE47 (NMI exit). Those four are done by the host (BenchStub),
+; taking the cycles the KERNAL's own code takes; no ROM code is in the stand-ins.
 ;
 ; The platform supplies BenchFile(name, length): the address of a record
 ;   name length, name, size lo, size hi, the .PRG bytes
@@ -16,6 +19,8 @@ Declare BenchEvent(kind.i, rec.i)
 Global BenchMode.i, BenchFailures.i, BenchTests.i, BenchFinished.i, BenchCurrent.i, BenchStopName.i
 Global Dim BenchName.a(32)
 Global BenchNameLen.i, BenchKeepRoms.i
+; 1 while the stand-in ROMs (and so their interrupt traps) are in
+Global BenchRomsIn.i
 
 ; With BenchKeepRoms the ROMs already loaded stay (BASIC's number printer at $BDCD
 ; is what the CIA tests report their results with); the bench's entries go over them.
@@ -25,7 +30,7 @@ Procedure BenchRoms()
     For i = 0 To 8191 : RomKernal(i) = 0 : RomBasic(i) = 0 : Next
     For i = 0 To 4095 : RomChar(i) = 0 : Next
   EndIf
-  For i = 0 To 18 : RomKernal($FF48 - $E000 + i) = PeekA(?BenchIrq + i) : Next
+  RomKernal($FF48 - $E000) = $02
   RomKernal($FFFE - $E000) = $48 : RomKernal($FFFF - $E000) = $FF
   RomKernal($FFFA - $E000) = $43 : RomKernal($FFFB - $E000) = $FE
   RomKernal($FE43 - $E000) = $02
@@ -33,11 +38,8 @@ Procedure BenchRoms()
   RomKernal($FFD2 - $E000) = $02 : RomKernal($E16F - $E000) = $02 : RomKernal($FFE4 - $E000) = $02
   RomBasic($A002 - $A000) = $00 : RomBasic($A003 - $A000) = $80
   RomBasic($A474 - $A000) = $02
-  ; the KERNAL's IRQ end ($EA31: acknowledge CIA 1, restore the registers, RTI) and its NMI
-  ; entry ($FE47: save the registers, acknowledge CIA 2, restore, RTI)
-  For i = 0 To 8 : RomKernal($EA31 - $E000 + i) = PeekA(?BenchIrqEnd + i) : Next
-  For i = 0 To 13 : RomKernal($FE47 - $E000 + i) = PeekA(?BenchNmi + i) : Next
-  C64RomsLoaded = 1
+  RomKernal($EA31 - $E000) = $02 : RomKernal($FE47 - $E000) = $02
+  C64RomsLoaded = 1 : BenchRomsIn = 1
 EndProcedure
 
 Procedure BenchLoad(rec.i)
@@ -53,7 +55,7 @@ Procedure BenchLoad(rec.i)
   M($0314) = $31 : M($0315) = $EA : M($0316) = $31 : M($0317) = $EA : M($0318) = $47 : M($0319) = $FE
   ; in RAM too, for the tests that bank the ROMs out
   M($A002) = $00 : M($A003) = $80 : M($FFFE) = $48 : M($FFFF) = $FF
-  For i = 0 To 18 : M($FF48 + i) = PeekA(?BenchIrq + i) : Next
+  M($FF48) = $02
   M($FFD2) = $02 : M($E16F) = $02 : M($FFE4) = $02 : M($8000) = $02 : M($A474) = $02
   BenchTests = BenchTests + 1 : BenchCurrent = rec
   BenchEvent(1, rec)
@@ -62,6 +64,53 @@ EndProcedure
 Procedure BenchRts()
   CpuPop(Lo) : CpuPop(Hi)
   PC = ((Lo | (Hi << 8)) + 1) & $FFFF
+EndProcedure
+
+; RTI, as the 6510 does it (and a pending interrupt is looked at again)
+Procedure BenchRti()
+  CpuPop(Tmp)
+  CpuSetStatus(Tmp)
+  CpuPop(Lo) : CpuPop(Hi)
+  PC = Lo | (Hi << 8)
+  If FI = 0 And C64IrqLine <> 0 : Budget = Budget - Left : Left = 0 : EndIf
+EndProcedure
+
+; The interrupt entries and exits of the stand-in ROMs, done by the host with the cycles the
+; KERNAL's code takes (the trap's own 2 are charged by the CPU): 1 when addr is one of them.
+Procedure.i BenchStub(addr.i)
+  Protected v.i
+  If addr = $FF48
+    ; IRQ / BRK entry: A, X, Y saved; the status the interrupt pushed says BRK ($0316) or IRQ ($0314)
+    CpuPush(A) : CpuPush(X) : CpuPush(Y)
+    v = $0314
+    ; 29 cycles for an IRQ (the BEQ taken), 28 for BRK; the trap's own 2 are counted by the CPU
+    Left = Left - 27
+    If M($100 + ((S + 4) & 255)) & $10 : v = $0316 : Left = Left + 1 : EndIf
+    PC = M(v) | (M(v + 1) << 8)
+    ProcedureReturn 1
+  EndIf
+  If addr = $EA31
+    ; IRQ exit: CIA 1 acknowledged (its ICR read where the code reads it), Y, X, A restored, RTI
+    AccessPhase = 3 : Tmp = C64IoRead($DC0D)
+    CpuPop(Y) : CpuPop(X) : CpuPop(A)
+    BenchRti()
+    Left = Left - 24
+    ProcedureReturn 1
+  EndIf
+  If addr = $FE43
+    ; NMI entry: through the vector at $0318
+    PC = M($0318) | (M($0319) << 8)
+    Left = Left - 3
+    ProcedureReturn 1
+  EndIf
+  If addr = $FE47
+    ; NMI exit: CIA 2 acknowledged (after the registers are saved), RTI
+    AccessPhase = 16 : Tmp = C64IoRead($DD0D)
+    BenchRti()
+    Left = Left - 37
+    ProcedureReturn 1
+  EndIf
+  ProcedureReturn 0
 EndProcedure
 
 Procedure.i BenchTrap(addr.i)
@@ -126,11 +175,3 @@ Procedure.i BenchStart(nameAdr.i, n.i)
   ProcedureReturn 1
 EndProcedure
 
-DataSection
-BenchIrq:
-  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
-BenchIrqEnd:
-  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
-BenchNmi:
-  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
-EndDataSection

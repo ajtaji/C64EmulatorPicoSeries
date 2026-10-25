@@ -41,11 +41,8 @@ Procedure.i LoadTest(name$)
   FreeMemory(*buf)
   M($0002) = $00 : M($A002) = $00 : M($A003) = $80
   M($FFFE) = $48 : M($FFFF) = $FF : M($01FE) = $FF : M($01FF) = $7F
-  ; the KERNAL's IRQ entry
-  Restore IrqHandler
-  For i = 0 To 18
-    Read.a M($FF48 + i)
-  Next
+  ; the IRQ / BRK entry: a trap (C64Trap)
+  M($FF48) = $02
   M($FFD2) = $02 : M($E16F) = $02 : M($FFE4) = $02 : M($8000) = $02 : M($A474) = $02
   Tests + 1 : Current$ = name$
   If Tests = 123 Or Tests = 145 : PrintN("") : PrintN("INSTR_AT_" + Str(Tests) + " " + Str(CpuInstructions)) : EndIf
@@ -68,6 +65,15 @@ EndProcedure
 Procedure.i C64Trap(addr.i)
   Protected name$, i.i, c.i
   Select addr
+    Case $FF48
+      ; the IRQ / BRK entry a KERNAL has, done here (no ROM code): A, X, Y saved; the status the
+      ; interrupt pushed says BRK ($0316) or IRQ ($0314); the cycles its code takes (29, the trap's 2 counted)
+      CpuPush(A) : CpuPush(X) : CpuPush(Y)
+      c = $0314
+      Left - 27
+      If M($100 + ((S + 4) & 255)) & $10 : c = $0316 : Left + 1 : EndIf
+      PC = M(c) | (M(c + 1) << 8)
+      ProcedureReturn 1
     Case $FFD2
       M($030C) = 0 : Prints + 1
       c = A
@@ -129,7 +135,3 @@ If t > 0 : PrintN("speed " + StrF(CpuInstructions / t / 1000.0, 1) + " M instruc
 If Failures : End 1 : EndIf
 End 0
 
-DataSection
-  IrqHandler:
-  Data.a $02 ; (an interrupt entry / exit: a trap the host answers - no ROM code here)
-EndDataSection
