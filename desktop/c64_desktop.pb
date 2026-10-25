@@ -3,7 +3,8 @@
 ;
 ; Build (PowerShell, from the repository root):
 ;   & "C:\Program Files\PureBasic\Compilers\pbcompilerc.exe" desktop\c64_desktop.pb /EXE desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
-;   (the engine is found at C:/Users/ajtaj/Desktop/Neon-Arcade-Dispay-Engine/ unless
+;   (the Neon Arcade Display Engine, https://github.com/ajtaji/Neon-Arcade-Dispay-Engine, is found
+;    cloned beside this repository - <parent>/Neon-Arcade-Dispay-Engine/ - unless
 ;    /CONSTANT GL_ENGINE_DIR$=<path>/ says otherwise; the trailing slash matters)
 ; Run:  desktop\PureMetalC64.exe [program.prg|disk.d64] [--roms folder] [--ntsc] [--mute] [--tab N] [--shot window.png --seconds S]
 ;
@@ -14,7 +15,7 @@
 EnableExplicit
 
 CompilerIf Not Defined(GL_ENGINE_DIR$, #PB_Constant)
-  #GL_ENGINE_DIR$ = "C:/Embedded Compiler/Neon-Arcade-Dispay-Engine/"
+  #GL_ENGINE_DIR$ = #PB_Compiler_FilePath + "../../Neon-Arcade-Dispay-Engine/"
 CompilerEndIf
 XIncludeFile #GL_ENGINE_DIR$ + "GlTypes.pbi"
 XIncludeFile #GL_ENGINE_DIR$ + "GlUtilities.pbi"

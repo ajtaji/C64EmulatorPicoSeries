@@ -173,14 +173,26 @@ reproduce byte for byte:
 
 ![The desktop program](docs/img/desktop.png)
 
-Needs PureBasic 6 (x64) and the [Neon Arcade Display Engine](https://github.com/ajtaji/Neon-Arcade-Dispay-Engine)
-(found at `C:/Embedded Compiler/Neon-Arcade-Dispay-Engine/` unless `/CONSTANT GL_ENGINE_DIR$=<path>/`
-says otherwise):
+### Building the desktop version
+
+You need PureBasic 6.41 for Windows x64 (the C back end) and the
+[Neon Arcade Display Engine](https://github.com/ajtaji/Neon-Arcade-Dispay-Engine), cloned beside this
+repository - the program finds it at `../Neon-Arcade-Dispay-Engine/` next to its own folder:
 
 ```
-& "C:\Program Files\PureBasic\Compilers\pbcompilerc.exe" desktop\c64_desktop.pb /EXE desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
-desktop\PureMetalC64.exe [program.prg | disk.d64] [--roms <folder>] [--pal] [--mute]
+git clone https://github.com/ajtaji/C64EmulatorPicoSeries.git
+git clone https://github.com/ajtaji/Neon-Arcade-Dispay-Engine.git
 ```
+
+Then, from PowerShell in the folder that holds both:
+
+```
+& "C:\Program Files\PureBasic\Compilers\pbcompilerc.exe" C64EmulatorPicoSeries\desktop\c64_desktop.pb /EXE C64EmulatorPicoSeries\desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
+C64EmulatorPicoSeries\desktop\PureMetalC64.exe [program.prg | disk.d64] [--roms <folder>] [--pal] [--mute]
+```
+
+With the engine somewhere else, add `/CONSTANT GL_ENGINE_DIR$=<path to the engine>/` (the trailing slash
+matters). The console check builds the same way: `desktop\c64_check.pb` with `/CONSOLE` (it needs no engine).
 
 Choose the ROM folder once with the toolbar's **ROMs...** (it is remembered). It starts as the NTSC
 C64; the toolbar's NTSC / PAL button or `--pal` switches.
