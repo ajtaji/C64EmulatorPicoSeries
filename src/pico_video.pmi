@@ -1,7 +1,7 @@
 ; The C64's picture on the LAFVIN ST7796 (480 x 320, landscape), 1:1.
 ;
 ; Core 0's VIC writes each line as 384 colour indices into a ring of 32 lines
-; (PlatformLine / PlatformLineDone). Core 1 turns them into RGB565, four lines
+; (PlatformLine / PlatformLineDone). Core 1 turns them into RGB565, eight lines
 ; to a buffer, two buffers, and sends them with SPI0's DMA while it converts
 ; the next. It converts two pixels a table read (PalPair: two colours -> two
 ; RGB565 halfwords in one word): a pixel at a time took about half of core 1,
@@ -13,11 +13,20 @@
 ; LAFVIN wiring: SCK GP2, MOSI GP3 (SPI0, 100 MHz from clk_sys 200 MHz),
 ; CS GP5, DC GP6, RST GP7.
 #VID_X0 = 48
-#VID_Y0 = 24
 #VID_W = 384
-#VID_H = 272
-#VID_RING = 32
-#VID_BATCH = 4
+; the view's height and its top row on the 320-row panel: PAL 272 lines, NTSC 242 (VicViewH),
+; centred; VideoBegin and a change of standard set them
+Global VidH.i = 272, VidY0.i = 24, VidClearReq.i
+; the line ring: the platform's size (a power of two) - the Pico 2's link is slower than a frame, so
+; its ring holds the backlog of several frames before one is skipped
+#VID_RING = #C64_VID_RING
+; lines a DMA buffer: 8 (490 us on the wire at 100 MHz) leaves core 1 time to draw sprite-heavy lines
+; without the link going idle; the Bluetooth build keeps 4 (its radio stack leaves no SRAM for more)
+CompilerIf #C64_AUDIO = 1
+  #VID_BATCH = 4
+CompilerElse
+  #VID_BATCH = 8
+CompilerEndIf
 ; whole words, so every line starts word-aligned (the VIC writes it 32 bits at a time)
 Global Dim LineRing.l(#VID_RING * #VID_W / 4)
 Global Dim LineTag.i(#VID_RING)
@@ -26,8 +35,22 @@ Global Dim PalPair.l(256)
 ; words, so the converter stores two pixels at a time on an aligned address
 Global Dim DmaBuf.l(#VID_BATCH * #VID_W)
 Global LinesMade.i, LinesSent.i, VidWaitUs.i, VidDropped.i
+; core 1's working time (drawing the lines, converting them, the radio), in microseconds
+Global Core1BusyUs.i, Core1DrawUs.i, Core1ConvUs.i
 Global VidOpen.i, VidNextRow.i, VidBusy.i, VidCur.i, VidPending.i, VidPendingLines.i
 Global VidFrames.i, VidLinesOut.i, VidSkip.i
+; THE PANEL SKIPS, THE MACHINE DOES NOT. When the panel's link is behind (more than VidSkipAt lines
+; still to send) as a frame's first line is drawn, that frame is drawn - every line, so the sprite collisions
+; stay exact - into one scratch line and not sent. The machine keeps its 50 / 60 Hz; the panel shows
+; what its link carries (the Pico 2's SPI runs at 75 MHz at the RP2350's 150 MHz: a 384-pixel line takes
+; 82 us, a 242-line NTSC frame 19.8 ms).
+Global VidSkipFrame.i, VidFramesSkipped.i
+; a frame is skipped when the backlog at its first line passes this (VideoStandard sets it: room left
+; for half a frame's lines behind the backlog, at least half the ring)
+Global VidSkipAt.i = #VID_RING / 2
+; the boot check of the platform's line converter: -1 right, else the first wrong pixel
+Global VidCheckBad.i = -2
+Global Dim VidScratch.l(#VID_W / 4)
 
 ProcedureRAM VidFence()
   ASM
@@ -35,8 +58,16 @@ ProcedureRAM VidFence()
   EndASM
 EndProcedure
 
+; The view height of the standard now set (VicViewH): the panel window follows it, cleared once.
+Procedure VideoStandard()
+  VidH = VicViewH : VidY0 = (320 - VidH) / 2
+  VidSkipAt = #VID_RING - VidH / 2
+  If VidSkipAt < #VID_RING / 2 : VidSkipAt = #VID_RING / 2 : EndIf
+  VidClearReq = 1
+EndProcedure
+
 Procedure VideoBegin()
-  Protected i.i, r.i, g.i, b.i
+  Protected i.i, r.i, g.i, b.i, bad.i
   For i = 0 To 15
     r = PeekA(?C64Palette + i * 3) : g = PeekA(?C64Palette + i * 3 + 1) : b = PeekA(?C64Palette + i * 3 + 2)
     Pal565(i) = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
@@ -44,40 +75,85 @@ Procedure VideoBegin()
   Next
   ; PalPair(a | b << 4): pixel a then pixel b (the lower address first)
   For i = 0 To 255 : PalPair(i) = Pal565(i & 15) | (Pal565(i >> 4) << 16) : Next
+  ; the platform's assembly converter checked against Pal565 on a line of every index (colour + flag)
+  For i = 0 To #VID_W - 1 : PokeA(@LineRing(0) + i, (i * 7 + (i >> 5)) & 31) : Next
+  VidLine565(@LineRing(0), @DmaBuf(0))
+  bad = -1
+  For i = 0 To #VID_W - 1
+    If bad < 0 And PeekU(@DmaBuf(0) + i * 2) <> Pal565(PeekA(@LineRing(0) + i)) : bad = i : EndIf
+  Next
+  VidCheckBad = bad
   SpiPeriFromSys(#CLOCK_KHZ)
   SpiBegin(0, 2, 3, -1, 100000)
   Tft796Begin(0, 5, 6, 7) : Tft796Rotate(1) : Tft796Fill(0)
 EndProcedure
 
-; Core 0: the buffer for view line viewY, once core 1 has room for it.
+; THE TWO CORES. Core 0 runs the 6510, the CIAs, the SID and the VIC's line logic, and leaves each
+; visible line as a record (vic.pmi); core 1 draws the records into the line ring (VicRenderNext,
+; RenderPoll below), converts the lines to RGB565 and sends them to the panel, and drives the radio.
+
+; Core 0: a line's record is in the ring; core 1 takes it from there.
+ProcedureRAM PlatformRecord()
+EndProcedure
+; Core 0: the record ring is full - wait for core 1 (counted as vid_wait_us).
+ProcedureRAM PlatformRecordWait()
+  Protected start.i
+  start = Micros()
+  While VicRecHead - PeekL(@VicRecDone) >= #VREC
+    If Micros() - start > 200000 : Break : EndIf
+  Wend
+  VidWaitUs = VidWaitUs + Micros() - start
+EndProcedure
+ProcedureRAM PlatformFence()
+  VidFence()
+EndProcedure
+
+; Core 1: the buffer for view line viewY (RenderPoll draws only when the ring has a free slot).
 ProcedureRAM.i PlatformLine(viewY.i)
-  Protected start.i, slot.i
-  If LinesMade - PeekL(@LinesSent) >= #VID_RING
-    start = Micros()
-    While LinesMade - PeekL(@LinesSent) >= #VID_RING
-      If Micros() - start > 200000 : Break : EndIf
-    Wend
-    VidWaitUs = VidWaitUs + Micros() - start
+  Protected slot.i
+  If viewY = 0
+    VidSkipFrame = Bool(LinesMade - PeekL(@LinesSent) > VidSkipAt)
+    If VidSkipFrame : VidFramesSkipped = VidFramesSkipped + 1 : EndIf
   EndIf
+  If VidSkipFrame : ProcedureReturn @VidScratch(0) : EndIf
   slot = LinesMade & (#VID_RING - 1)
   LineTag(slot) = viewY
   ProcedureReturn @LineRing(0) + slot * #VID_W
 EndProcedure
 ProcedureRAM PlatformLineDone(viewY.i)
+  If VidSkipFrame : ProcedureReturn : EndIf
   VidFence()
   LinesMade = LinesMade + 1
 EndProcedure
 
 ; Core 1 side ------------------------------------------------------------
+; Draw the waiting records (up to 4 at a time, so the panel's DMA is fed between them).
+ProcedureRAM RenderPoll()
+  Protected n.i, start.i, vy.i
+  If PeekL(@VicRecHead) = VicRecDone : ProcedureReturn : EndIf
+  start = Micros()
+  While n < 4 And PeekL(@VicRecHead) <> VicRecDone
+    ; room for the line: a free slot, or a frame not being sent, or a first line that will skip
+    If LinesMade - PeekL(@LinesSent) >= #VID_RING
+      vy = VRec((VicRecDone & (#VREC - 1)) * #VREC_W)
+      If vy <> 0 And VidSkipFrame = 0 : Break : EndIf
+      If vy = 0 And LinesMade - PeekL(@LinesSent) <= VidSkipAt : Break : EndIf
+    EndIf
+    VicRenderNext()
+    n = n + 1
+  Wend
+  start = Micros() - start
+  Core1BusyUs = Core1BusyUs + start : Core1DrawUs = Core1DrawUs + start
+EndProcedure
 ProcedureRAM VidDmaStart(pointer.i, halfwords.i)
   PokeL(#SPI_DMA_CH0_READ, pointer)
-  PokeL(#SPI_DMA_CH0_WRITE, $4003C008)
+  PokeL(#SPI_DMA_CH0_WRITE, #C64_SPI0 + 8)
   PokeL(#SPI_DMA_CH0_COUNT, halfwords)
-  PokeL(#SPI_DMA_CH0_CTRL, #SPI_DMA_EN | #SPI_DMA_SIZE_HALF | #SPI_DMA_INCR_READ | (#SPI_DMA_TREQ_SPI0_TX << 15))
+  PokeL(#SPI_DMA_CH0_CTRL, #SPI_DMA_EN | #SPI_DMA_SIZE_HALF | #SPI_DMA_INCR_READ | (#SPI_DMA_TREQ_SPI0_TX << #C64_DMA_TREQ_SHIFT))
 EndProcedure
 ProcedureRAM.i VidDmaIdle()
   If PeekL(#SPI_DMA_CH0_CTRL) & #SPI_DMA_BUSY : ProcedureReturn 0 : EndIf
-  If PeekL($4003C00C) & #SPI_SR_BSY : ProcedureReturn 0 : EndIf
+  If PeekL(#C64_SPI0 + $C) & #SPI_SR_BSY : ProcedureReturn 0 : EndIf
   ProcedureReturn 1
 EndProcedure
 Procedure VidClose()
@@ -89,10 +165,10 @@ EndProcedure
 ; Open the panel's window at C64 view row `row` down to the bottom.
 Procedure VidOpenAt(row.i)
   VidClose()
-  Tft796Window(#VID_X0, #VID_Y0 + row, #VID_X0 + #VID_W - 1, #VID_Y0 + #VID_H - 1)
+  Tft796Window(#VID_X0, VidY0 + row, #VID_X0 + #VID_W - 1, VidY0 + VidH - 1)
   SpiDmaInit() : SpiSetBits(0, 16)
   Tft796PinSet(tft796_dc, 1) : Tft796PinSet(tft796_cs, 0)
-  PokeL($4003C024, PeekL($4003C024) | #SPI_SSPDMACR_TXDMAE)
+  PokeL(#C64_SPI0 + $24, PeekL(#C64_SPI0 + $24) | #SPI_SSPDMACR_TXDMAE)
   VidOpen = 1 : VidNextRow = row
 EndProcedure
 
@@ -107,13 +183,9 @@ ProcedureRAM.i VidConvert()
     If tag <> VidNextRow + n : Break : EndIf
     VidFence()
     src = @LineRing(0) + slot * #VID_W
-    ; four pixels a word read (bit 4, the foreground flag, is dropped by the masks)
-    For i = 0 To #VID_W / 4 - 1
-      w = PeekL(src)
-      PokeL(dst, PalPair((w & 15) | ((w >> 4) & $F0)))
-      PokeL(dst + 4, PalPair(((w >> 16) & 15) | ((w >> 20) & $F0)))
-      src = src + 4 : dst = dst + 8
-    Next
+    ; four pixels a word read (bit 4, the foreground flag, is dropped): the platform's own loop
+    VidLine565(src, dst)
+    dst = dst + #VID_W * 2
     VidFence()
     LinesSent = LinesSent + 1
     n = n + 1
@@ -122,12 +194,18 @@ ProcedureRAM.i VidConvert()
 EndProcedure
 
 ProcedureRAM VideoPoll()
-  Protected slot.i, tag.i
+  Protected slot.i, tag.i, t.i
+  ; a new standard: the panel cleared once, between transfers (core 1 owns the panel)
+  If PeekL(@VidClearReq) And VidBusy = 0 And VidPending = 0
+    VidClose() : Tft796Fill(0) : VidClearReq = 0
+  EndIf
   If VidBusy
     If VidDmaIdle() = 0
       ; while the panel takes one buffer, fill the other
       If VidPending = 0 And LinesSent <> PeekL(@LinesMade)
+        t = Micros()
         VidPendingLines = VidConvert()
+        t = Micros() - t : Core1BusyUs = Core1BusyUs + t : Core1ConvUs = Core1ConvUs + t
         If VidPendingLines : VidPending = 1 : EndIf
       EndIf
       ProcedureReturn
@@ -149,7 +227,9 @@ ProcedureRAM VideoPoll()
     If tag = 0 : VidFrames = VidFrames + 1 : EndIf
     VidOpenAt(tag)
   EndIf
+  t = Micros()
   VidPendingLines = VidConvert()
+  t = Micros() - t : Core1BusyUs = Core1BusyUs + t : Core1ConvUs = Core1ConvUs + t
   If VidPendingLines : VidPending = 1 : EndIf
 EndProcedure
 

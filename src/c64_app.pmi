@@ -10,9 +10,10 @@
 ;   `s  the screen's text      `r  reset      `d  the built-in demo
 ;   `b  boot BASIC             `m  mute       `0-`9 put the store's n-th .PRG in and RUN it
 ;   `l  LOAD"*",8,1 and RUN    `j  joystick fire for 0.2 s      `u/`n/`a/`e  up/down/left/right 0.2 s
+;   `v  NTSC <-> PAL (NTSC, 60 frames/s, is the default)
 ;   `p  the time split (CPU / VIC / SID per second) in the status line, on / off
 ; Out: C64_STATUS once a second (frames, emulation time, display, audio).
-XIncludeFile "cpu6510.pmi"
+; the 6510 comes with the chip's libraries (libs_rp2040.pico / libs_rp2350.pico2)
 XIncludeFile "c64.pmi"
 XIncludeFile "cia.pmi"
 XIncludeFile "vic.pmi"
@@ -29,6 +30,8 @@ XIncludeFile "pico_input.pmi"
 XIncludeFile "pico_store.pmi"
 XIncludeFile "demo_data.pmi"
 
+; the video standard: 0 NTSC (the C64 was a US machine: 60 frames/s, the default), 1 PAL
+Global AppPal.i = 0
 Global AppMode.i, AppBacktick.i, AppFrameUs.i, AppNext.i, AppEmuUs.i, AppWorstUs.i, AppLate.i
 Global AppLastTick.i, Core1Ready.i, AppFrames.i
 
@@ -54,6 +57,7 @@ ProcedureRAM Core1Main()
       Core1Parked = 0
     EndIf
     VideoPoll()
+    RenderPoll()
     AudioPoll()
   ForEver
 EndProcedure
@@ -102,6 +106,15 @@ Procedure.i AppBoot()
   ProcedureReturn 1
 EndProcedure
 
+; After a change of standard (and at start): the frame pace and the panel's window
+Procedure AppStandardSet()
+  If C64Pal : AppFrameUs = 19950 : Else : AppFrameUs = 16715 : EndIf
+  VideoStandard()
+  AppNext = Micros()
+  Say("C64 standard=") : If C64Pal : Say("PAL") : Else : Say("NTSC") : EndIf
+  Say(" frame_us=") : Num(AppFrameUs) : Eol()
+EndProcedure
+
 Procedure AppCommand(key.i)
   If key = 115 : AppScreen()
   ElseIf key = 114
@@ -111,6 +124,11 @@ Procedure AppCommand(key.i)
     If AppBoot() = 0 : Say("C64 no ROMs in the store") : Eol() : EndIf
   ElseIf key = 109 : SidMute = 1 - SidMute
   ElseIf key = 112 : PerfOn = 1 - PerfOn
+  ElseIf key = 118
+    ; `v: NTSC <-> PAL, and the program started again
+    AppPal = 1 - AppPal : C64SetStandard(AppPal)
+    If AppMode = 2 : AppBoot() : Else : AppDemo() : EndIf
+    AppStandardSet()
   ElseIf key >= 48 And key <= 57
     If StoreFind(4, key - 48)
       C64QueuePrg(StoreAddr, StoreSize, 1)
@@ -147,7 +165,7 @@ Procedure PlatformTick()
 EndProcedure
 
 Procedure C64Main()
-  Protected t.i, report.i, frames.i, now.i, lastMade.i, lastOut.i, lastSamples.i, lastVf.i, lastIns.i
+  Protected t.i, report.i, frames.i, now.i, lastMade.i, lastOut.i, lastSamples.i, lastVf.i, lastIns.i, lastSkip.i
   BoardBegin()
   Say("C64 PureMetal clk_khz=") : Num(ClockSysKhz()) : Eol()
   VideoBegin()
@@ -160,9 +178,9 @@ Procedure C64Main()
   CompilerIf #PM_SRAM_BYTES < 300000
     SidDiv = 2
   CompilerEndIf
-  C64SetStandard(1)
+  C64SetStandard(AppPal)
   If AppBoot() = 0 : AppDemo() : EndIf
-  If C64Pal : AppFrameUs = 19950 : Else : AppFrameUs = 16715 : EndIf
+  AppStandardSet()
   Say("C64 spi_hz=") : Num(SpiHz(0)) : Say(" frame_us=") : Num(AppFrameUs) : Eol()
   AppNext = Micros() : report = AppNext
   Repeat
@@ -191,12 +209,17 @@ Procedure C64Main()
       Say(" bt_live=") : Num(AudioLive) : Say(" bt_under=") : Num(AudioUnderruns) : Say(" bt_packets=") : Num(AudioPackets)
       Say(" pc=$") : Hex4(PC) : Say(" stop=") : Num(Stopped) : Say(" late=") : Num(AppLate)
       Say(" loads=") : Num(LoadCount)
+      ; each core's working time this second: core 0 the emulation less its waits for core 1, core 1 drawing + converting + radio
+      Say(" core0_busy_us=") : Num(AppEmuUs - VidWaitUs) : Say(" core1_busy_us=") : Num(Core1BusyUs + AudioBusyUs)
+      Say(" c1_draw_us=") : Num(Core1DrawUs) : Say(" c1_conv_us=") : Num(Core1ConvUs)
+      If VidCheckBad = -1 : Say(" vid565=ok") : Else : Say(" vid565=FAILED_at_") : Num(VidCheckBad) : EndIf
+      Say(" lcd_skipped=") : Num(VidFramesSkipped - lastSkip) : lastSkip = VidFramesSkipped
       If PerfOn : Say(" cpu_us=") : Num(PerfCpuUs) : Say(" vic_us=") : Num(PerfVicUs) : Say(" sid_us=") : Num(PerfSidUs) : Say(" cells_us=") : Num(PerfCellUs) : Say(" sprites_us=") : Num(PerfSprUs) : EndIf
       Eol()
       PerfCpuUs = 0 : PerfVicUs = 0 : PerfSidUs = 0 : PerfCellUs = 0 : PerfSprUs = 0
       lastMade = LinesMade : lastOut = VidLinesOut : lastSamples = SidSamples : lastVf = VidFrames
       lastIns = CpuInstructions
-      frames = 0 : AppEmuUs = 0 : AppWorstUs = 0 : VidWaitUs = 0 : report = now
+      frames = 0 : AppEmuUs = 0 : AppWorstUs = 0 : VidWaitUs = 0 : Core1BusyUs = 0 : Core1DrawUs = 0 : Core1ConvUs = 0 : AudioBusyUs = 0 : report = now
     EndIf
   ForEver
 EndProcedure

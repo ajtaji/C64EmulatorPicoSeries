@@ -14,3 +14,7 @@ CompilerIf #C64_AUDIO = 1
   XIncludeFile "Shared/Bluetooth/sbc.pmi"
   XIncludeFile "Shared/Bluetooth/bt_audio.pmi"
 CompilerEndIf
+; the 6510 with its tail and operand fetches in Thumb-2 (tools/gen_cpu_m33.py)
+XIncludeFile "cpu6510_m33.pico2"
+; the panel line converter (core 1), in this chip's own assembly
+XIncludeFile "vid565_rp2350.pico2"

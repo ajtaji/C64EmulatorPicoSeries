@@ -1,0 +1,37 @@
+# The speed bench (NTSC, the default), one board run: the self-test (store PRG 0), the PureMetal demo (store PRG 1), then
+# Dungeon of ROTT from the store's .D64, in play - each with the time split on (`p).
+expect d64=1 20
+send \`p
+send \`b
+wait 4
+send \`0
+wait 8
+send \`s
+expect PASSED 5
+send \`b
+wait 4
+send \`1
+wait 12
+send \`b
+wait 4
+send LOAD"*",8,1\n
+expect C64_STATUS 5
+wait 3
+send RUN\n
+wait 8
+send \`j
+wait 3
+send \`j
+wait 2
+send \`u
+wait 1
+send \`e
+wait 1
+send \`j
+wait 1
+send \`a
+wait 1
+send \`j
+wait 8
+send \`s
+expect SCREEN_END 5

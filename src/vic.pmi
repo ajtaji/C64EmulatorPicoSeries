@@ -27,7 +27,41 @@ Global Dim SprOcc.a(448)
 Global VicRaster.i, VicCompare.i, VicIrqFlags.i, VicIrqMask.i
 Global VicDenSeen.i, VicVcBase.i, VicVc.i, VicRc.i, VicDisplay.i, VicVBorder.i = 1
 Global VicSprSpr.i, VicSprBg.i, VicViewY0.i = 15, VicViewH.i = 272
-Global VicOut.i, VicLinesDrawn.i, VicSprActive.i = 1
+Global VicLinesDrawn.i, VicSprActive.i = 1
+
+; THE TWO SIDES. The chip's logic (raster, badlines, VC / RC, the border flip-flops, the sprites' DMA)
+; runs with the CPU (core 0 on a Pico). At each visible line's cycle 14 it writes a RECORD: the 48
+; registers as the CPU has left them, that state, the bank map, the row's characters and colours (a
+; row ring, one row a badline) and the sprites' data. The DRAWING side (core 1 on a Pico; on the
+; desktop at once, on the same thread) copies a record into the D... variables and draws the line from
+; them; the line's collisions go back in the record and core 0 sets $D01E / $D01F and the IRQ.
+; The drawing reads the character, bitmap and sprite-pointer memory when it draws, a few lines after
+; the real chip would on a Pico - visible only if a program rewrites them under the beam.
+#VREC = 16
+#VREC_W = 72
+#VROWS = 8
+Global Dim VRec.i(#VREC * #VREC_W)
+Global Dim VRow.i(#VROWS * 80)
+Global VicRecHead.i, VicRecDone.i, VicRecMerged.i, VicRowHead.i
+; the drawing side's copy of the line
+Global Dim DVm.i(40)
+Global Dim DCol.i(40)
+; the record being drawn is read where it lies (DRecK: its first entry) - no copy of the registers
+Global DRecK.i
+Macro DReg(n)
+  VRec(DRecK + 21 + (n))
+EndMacro
+Macro DMap(n)
+  VRec(DRecK + 6 + (n))
+EndMacro
+Macro DSprData(n)
+  VRec(DRecK + 10 + (n))
+EndMacro
+Macro DSprDisp(n)
+  ((VRec(DRecK + 18) >> (n)) & 1)
+EndMacro
+Global DOut.i, DVy.i, DRaster.i, DRc.i, DVc.i, DDisplay.i, DVBorder.i, DSprActive.i, DRowLoaded.i = -1
+Global DSS.i, DSB.i
 ; Eight pixels a cell as two 32-bit stores: Mask4(n) has byte k = $FF where bit 3-k of n is
 ; set (the leftmost pixel is the lowest byte). Cells are stored
 ; as words when there is no X scroll, else byte by byte.
@@ -73,6 +107,10 @@ EndProcedure
 
 Macro VicMem(adr)
   PeekA(VicMap(((adr) >> 12) & 3) + ((adr) & $3FFF))
+EndMacro
+; the same read on the drawing side, through the bank map of the line being drawn
+Macro DVicMem(adr)
+  PeekA(DMap(((adr) >> 12) & 3) + ((adr) & $3FFF))
 EndMacro
 
 Procedure VicReset()
@@ -197,14 +235,14 @@ EndProcedure
 ProcedureRAM.i VicSprites()
   Protected n.i, m.i, pos.i, wid.i, q.i, sbits.i, rep.i, mc.i, prio.i, col.i, i.i, k.i, c.i
   Protected old.i, ss.i, sb.i, any.i, j.i, lap.i, occ.i, bit.i, c1.i, c3.i
-  If VicSprActive = 0 : ProcedureReturn 0 : EndIf
+  If DSprActive = 0 : ProcedureReturn 0 : EndIf
   any = 0
   For n = 0 To 7
-    If SprDisp(n)
-      pos = (VicReg(n * 2) | (((VicReg($10) >> n) & 1) << 8)) + 8
+    If DSprDisp(n)
+      pos = (DReg(n * 2) | (((DReg($10) >> n) & 1) << 8)) + 8
       If pos >= 504 : pos = pos - 504 : EndIf
       SprPos(n) = pos
-      SprEnd(n) = pos + (24 << ((VicReg($1D) >> n) & 1))
+      SprEnd(n) = pos + (24 << ((DReg($1D) >> n) & 1))
       any = any + 1
     EndIf
   Next
@@ -212,9 +250,9 @@ ProcedureRAM.i VicSprites()
   ; sprite-sprite collisions need the occupancy buffer only where two sprites' spans meet
   For n = 0 To 7
     SprLap(n) = 0
-    If SprDisp(n) And any > 1
+    If DSprDisp(n) And any > 1
       For m = 0 To 7
-        If m <> n And SprDisp(m)
+        If m <> n And DSprDisp(m)
           If SprPos(m) < SprEnd(n) And SprPos(n) < SprEnd(m) : SprLap(n) = 1 : EndIf
         EndIf
       Next
@@ -225,16 +263,16 @@ ProcedureRAM.i VicSprites()
     EndIf
   Next
   ss = 0 : sb = 0
-  c1 = VicReg($25) & 15 : c3 = VicReg($26) & 15
+  c1 = DReg($25) & 15 : c3 = DReg($26) & 15
   For n = 7 To 0 Step -1
-    If SprDisp(n) = 0 : Continue : EndIf
-    sbits = SprData(n)
+    If DSprDisp(n) = 0 : Continue : EndIf
+    sbits = DSprData(n)
     If sbits = 0 : Continue : EndIf
     pos = SprPos(n) : lap = SprLap(n) : bit = 1 << n
-    rep = 1 + ((VicReg($1D) >> n) & 1)
-    mc = (VicReg($1C) >> n) & 1
-    prio = (VicReg($1B) >> n) & 1
-    col = VicReg($27 + n) & 15
+    rep = 1 + ((DReg($1D) >> n) & 1)
+    mc = (DReg($1C) >> n) & 1
+    prio = (DReg($1B) >> n) & 1
+    col = DReg($27 + n) & 15
     If mc
       rep = rep * 2
       For i = 0 To 11
@@ -249,12 +287,12 @@ ProcedureRAM.i VicSprites()
                 If occ : ss = ss | occ | bit : EndIf
                 SprOcc(q) = occ | bit
               EndIf
-              old = PeekA(VicOut + q)
+              old = PeekA(DOut + q)
               If old & 16
                 sb = sb | bit
-                If prio = 0 : PokeA(VicOut + q, c | 16) : EndIf
+                If prio = 0 : PokeA(DOut + q, c | 16) : EndIf
               Else
-                PokeA(VicOut + q, c)
+                PokeA(DOut + q, c)
               EndIf
             EndIf
             q = q + 1
@@ -272,12 +310,12 @@ ProcedureRAM.i VicSprites()
                 If occ : ss = ss | occ | bit : EndIf
                 SprOcc(q) = occ | bit
               EndIf
-              old = PeekA(VicOut + q)
+              old = PeekA(DOut + q)
               If old & 16
                 sb = sb | bit
-                If prio = 0 : PokeA(VicOut + q, col | 16) : EndIf
+                If prio = 0 : PokeA(DOut + q, col | 16) : EndIf
               Else
-                PokeA(VicOut + q, col)
+                PokeA(DOut + q, col)
               EndIf
             EndIf
             q = q + 1
@@ -286,22 +324,15 @@ ProcedureRAM.i VicSprites()
       Next
     EndIf
   Next
-  If ss
-    If VicSprSpr = 0 : VicIrqFlags = VicIrqFlags | 4 : EndIf
-    VicSprSpr = VicSprSpr | ss
-  EndIf
-  If sb
-    If VicSprBg = 0 : VicIrqFlags = VicIrqFlags | 2 : EndIf
-    VicSprBg = VicSprBg | sb
-  EndIf
-  If ss Or sb : C64UpdateIrq(C64Clock) : EndIf
+  ; the collisions go back with the line's record; core 0 sets the registers and the IRQ
+  DSS = ss : DSB = sb
   ProcedureReturn 1
 EndProcedure
 
 ; Fill [from, upto) of the line with colour c: bytes to a word boundary, then words.
 ProcedureRAM VicFill(from.i, upto.i, c.i)
   Protected ad.i, en.i, w.i
-  ad = VicOut + from : en = VicOut + upto
+  ad = DOut + from : en = DOut + upto
   While (ad & 3) <> 0 And ad < en : PokeA(ad, c) : ad = ad + 1 : Wend
   w = c * $01010101
   While ad + 4 <= en : PokeL(ad, w) : ad = ad + 4 : Wend
@@ -354,40 +385,40 @@ EndProcedure
 ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
   Protected i.i, g.i, c.i, col.i, f.i, b.i, gp.i, m.i, w0.i, w1.i, bg0.i, k.i, mc.i, chp.i
   Protected p0.i, p1.i, p2.i, p3.i, sh.i, rsh.i, cy.i
-  bg0 = VicReg($21) & 15
+  bg0 = DReg($21) & 15
   If mode >= 5 : bg0 = 0 : EndIf
   ; the cells are stored as aligned words: an X scroll of xs pixels starts a word later for 4-7,
   ; shifts each word left by the rest (xs & 3) bytes and carries the bytes pushed out into the next
   ; word (the xs bytes before the first cell and those after the last keep what is there)
-  gp = VicOut + 32 + (xs & 4)
+  gp = DOut + 32 + (xs & 4)
   sh = (xs & 3) << 3
   If sh
     rsh = 32 - sh
     cy = PeekL(gp) & ((1 << sh) - 1)
   EndIf
   ; the line's character data: one 2 KB set inside one 4 KB block of the VIC's bank
-  chp = VicMap((cb >> 12) & 3) + cb + VicRc
+  chp = DMap((cb >> 12) & 3) + cb + DRc
   ; standard and multicolour text: two table words a cell
   k = bg0
-  If mode = 1 : k = k | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8) | $10000 : EndIf
-  If mode <= 1 And VicDisplay
-    If VicRaster < TxRasterSeen : TxBuilds = 0 : EndIf
-    TxRasterSeen = VicRaster
+  If mode = 1 : k = k | ((DReg($22) & 15) << 4) | ((DReg($23) & 15) << 8) | $10000 : EndIf
+  If mode <= 1 And DDisplay
+    If DRaster < TxRasterSeen : TxBuilds = 0 : EndIf
+    TxRasterSeen = DRaster
     If k <> TxKey And TxBuilds < 4 : VicTxBuild(k) : TxBuilds = TxBuilds + 1 : EndIf
   EndIf
-  If mode <= 1 And VicDisplay And k = TxKey
+  If mode <= 1 And DDisplay And k = TxKey
     If sh = 0
       For i = 0 To 39
-        g = PeekA(chp + (VmLine(i) << 3))
-        c = (ColLine(i) & 15) << 4
+        g = PeekA(chp + (DVm(i) << 3))
+        c = (DCol(i) & 15) << 4
         PokeL(gp, TxTab(c | (g >> 4))) : PokeL(gp + 4, TxTab(c | (g & 15)))
         gp = gp + 8
       Next
       ProcedureReturn
     EndIf
     For i = 0 To 39
-      g = PeekA(chp + (VmLine(i) << 3))
-      c = (ColLine(i) & 15) << 4
+      g = PeekA(chp + (DVm(i) << 3))
+      c = (DCol(i) & 15) << 4
       w0 = TxTab(c | (g >> 4)) : w1 = TxTab(c | (g & 15))
       PokeL(gp, (w0 << sh) | cy) : PokeL(gp + 4, (w1 << sh) | (w0 >> rsh)) : cy = w1 >> rsh
       gp = gp + 8
@@ -396,12 +427,12 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
     ProcedureReturn
   EndIf
   ; standard text with no table this line: the colour word computed a cell
-  If mode = 0 And VicDisplay
+  If mode = 0 And DDisplay
     b = bg0 * $01010101
     For i = 0 To 39
-      g = PeekA(chp + (VmLine(i) << 3))
+      g = PeekA(chp + (DVm(i) << 3))
       If g
-        f = (ColLine(i) | 16) * $01010101
+        f = (DCol(i) | 16) * $01010101
         m = Mask4(g >> 4)
         w0 = (m & f) | ((~m) & b)
         m = Mask4(g & 15)
@@ -421,12 +452,12 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
   EndIf
   ; multicolour text (and its hires cells) and multicolour bitmap: the colours that are the
   ; same for the whole line are set once
-  If (mode = 1 Or mode = 3) And VicDisplay
+  If (mode = 1 Or mode = 3) And DDisplay
     b = bg0 * $01010101
     PairW(0) = bg0 * $0101
     If mode = 1
-      PairW(1) = (VicReg($22) & 15) * $0101 : PairW(2) = ((VicReg($23) & 15) | 16) * $0101
-      k = bg0 | ((VicReg($22) & 15) << 4) | ((VicReg($23) & 15) << 8)
+      PairW(1) = (DReg($22) & 15) * $0101 : PairW(2) = ((DReg($23) & 15) | 16) * $0101
+      k = bg0 | ((DReg($22) & 15) << 4) | ((DReg($23) & 15) << 8)
       If k <> MCKey
         ; the table for this line's background colours (rebuilt only when they change)
         MCKey = k : PairW(3) = 0
@@ -436,7 +467,7 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
       EndIf
     EndIf
     For i = 0 To 39
-      c = VmLine(i) : col = ColLine(i)
+      c = DVm(i) : col = DCol(i)
       If mode = 1
         g = PeekA(chp + (c << 3))
         If col & 8
@@ -449,7 +480,7 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
           m = Mask4(g & 15) : w1 = (m & f) | ((~m) & b)
         EndIf
       Else
-        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+        g = DVicMem(bb + (((DVc + i) & $3FF) << 3) + DRc)
         PairW(1) = (c >> 4) * $0101 : PairW(2) = ((c & 15) | 16) * $0101 : PairW(3) = ((col & 15) | 16) * $0101
         w0 = PairW((g >> 6) & 3) | (PairW((g >> 4) & 3) << 16)
         w1 = PairW((g >> 2) & 3) | (PairW(g & 3) << 16)
@@ -465,15 +496,15 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
     ProcedureReturn
   EndIf
   ; the invalid modes (ECM with MCM or BMM) are black: a cell is only its foreground mask
-  If mode >= 5 And VicDisplay
+  If mode >= 5 And DDisplay
     For i = 0 To 39
-      c = VmLine(i) : col = ColLine(i)
+      c = DVm(i) : col = DCol(i)
       If mode = 6
-        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+        g = DVicMem(bb + (((DVc + i) & $3FF) << 3) + DRc)
       ElseIf mode = 7
-        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+        g = DVicMem(bb + (((DVc + i) & $3FF) << 3) + DRc)
       Else
-        g = VicMem(cb + ((c & $3F) << 3) + VicRc)
+        g = DVicMem(cb + ((c & $3F) << 3) + DRc)
       EndIf
       If mode = 7 Or (mode = 5 And (col & 8) <> 0)
         w0 = MPFg((g >> 4) & 15) & $10101010 : w1 = MPFg(g & 15) & $10101010
@@ -490,18 +521,18 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
     VicCellsTail(gp, sh, cy)
     ProcedureReturn
   EndIf
-  If VicDisplay = 0
-    If mode & 4 : g = VicMem($39FF) : Else : g = VicMem($3FFF) : EndIf
+  If DDisplay = 0
+    If mode & 4 : g = DVicMem($39FF) : Else : g = DVicMem($3FFF) : EndIf
   EndIf
   For i = 0 To 39
-    If VicDisplay
-      c = VmLine(i) : col = ColLine(i)
+    If DDisplay
+      c = DVm(i) : col = DCol(i)
       If mode & 2
-        g = VicMem(bb + (((VicVc + i) & $3FF) << 3) + VicRc)
+        g = DVicMem(bb + (((DVc + i) & $3FF) << 3) + DRc)
       ElseIf mode & 4
-        g = VicMem(cb + ((c & $3F) << 3) + VicRc)
+        g = DVicMem(cb + ((c & $3F) << 3) + DRc)
       Else
-        g = VicMem(cb + (c << 3) + VicRc)
+        g = DVicMem(cb + (c << 3) + DRc)
       EndIf
     Else
       c = 0 : col = 0
@@ -511,7 +542,7 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
       f = col | 16 : b = bg0
     ElseIf mode = 1
       If col & 8
-        mc = 1 : p0 = bg0 : p1 = VicReg($22) & 15 : p2 = (VicReg($23) & 15) | 16 : p3 = (col & 7) | 16
+        mc = 1 : p0 = bg0 : p1 = DReg($22) & 15 : p2 = (DReg($23) & 15) | 16 : p3 = (col & 7) | 16
       Else
         f = (col & 7) | 16 : b = bg0
       EndIf
@@ -520,7 +551,7 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
     ElseIf mode = 3
       mc = 1 : p0 = bg0 : p1 = c >> 4 : p2 = (c & 15) | 16 : p3 = (col & 15) | 16
     ElseIf mode = 4
-      f = col | 16 : b = VicReg($21 + (c >> 6)) & 15
+      f = col | 16 : b = DReg($21 + (c >> 6)) & 15
     ElseIf mode = 5
       If col & 8
         mc = 1 : p0 = 0 : p1 = 0 : p2 = 16 : p3 = 16
@@ -543,7 +574,7 @@ ProcedureRAM VicCells(mode.i, xs.i, cb.i, bb.i)
       m = Mask4(g & 15)
       w1 = (m & f) | ((~m) & b)
     EndIf
-    If VicDisplay = 0
+    If DDisplay = 0
       ; idle: every cell of the line is the same pattern
       For k = 0 To 39
         If sh = 0
@@ -568,9 +599,87 @@ EndProcedure
 
 ; Cycle 14: the matrix fetch of a badline, the line's graphics, sprites and
 ; border, then the sprites' MCBASE steps of cycles 15 and 16.
+; Draw the line of a record: the drawing side (core 1 on a Pico).
+ProcedureRAM VicRender()
+  Protected i.i, mode.i, c.i, cb.i, bb.i, xs.i, bc.i, lft.i, rgt.i, t0.i, t1.i
+  DOut = PlatformLine(DVy)
+  bc = DReg($20) & 15
+  If DVBorder
+    VicFill(0, #VIC_W, bc)
+    ; sprites still collide under the border: draw them, then the border over them
+    If VicSprites() : VicFill(0, #VIC_W, bc) : EndIf
+  Else
+    mode = ((DReg($11) >> 4) & 6) | ((DReg($16) >> 4) & 1)
+    c = DReg($21) & 15
+    If mode >= 5 : c = 0 : EndIf
+    xs = DReg($16) & 7
+    ; the scroll gap left of the first cell (every cell writes all its 8 pixels)
+    For i = 32 To 31 + xs : PokeA(DOut + i, c) : Next
+    cb = (DReg($18) & $0E) << 10
+    bb = (DReg($18) & 8) << 10
+    If PerfOn : t0 = PlatformUs() : EndIf
+    VicCells(mode, xs, cb, bb)
+    If PerfOn : t1 = PlatformUs() : PerfCellUs = PerfCellUs + t1 - t0 : EndIf
+    VicSprites()
+    If PerfOn : PerfSprUs = PerfSprUs + PlatformUs() - t1 : EndIf
+    If DReg($16) & 8
+      lft = 32 : rgt = 352
+    Else
+      lft = 39 : rgt = 343
+    EndIf
+    VicFill(0, lft, bc)
+    VicFill(rgt, #VIC_W, bc)
+  EndIf
+  PlatformLineDone(DVy)
+EndProcedure
+
+; The drawing side: the next record (there must be one), drawn from where it lies, its collisions
+; back in the record, done.
+ProcedureRAM VicRenderNext()
+  Protected k.i, i.i, r.i, m.i
+  PlatformFence()
+  k = (VicRecDone & (#VREC - 1)) * #VREC_W
+  DVy = VRec(k) : DRaster = VRec(k + 1)
+  m = VRec(k + 2)
+  DVBorder = m & 1 : DDisplay = (m >> 1) & 1 : DSprActive = (m >> 2) & 1
+  DRc = VRec(k + 3) : DVc = VRec(k + 4)
+  r = VRec(k + 5)
+  If r <> DRowLoaded
+    m = (r & (#VROWS - 1)) * 80
+    For i = 0 To 39 : DVm(i) = VRow(m + i) : DCol(i) = VRow(m + 40 + i) : Next
+    DRowLoaded = r
+  EndIf
+  DRecK = k
+  DSS = 0 : DSB = 0
+  VicRender()
+  VRec(k + 19) = DSS : VRec(k + 20) = DSB
+  PlatformFence()
+  VicRecDone = VicRecDone + 1
+EndProcedure
+
+; Core 0: the collisions of the lines drawn since the last call, into $D01E / $D01F and the IRQ.
+ProcedureRAM VicMergeCollisions()
+  Protected k.i, ss.i, sb.i
+  While VicRecMerged <> PeekL(@VicRecDone)
+    PlatformFence()
+    k = (VicRecMerged & (#VREC - 1)) * #VREC_W
+    ss = VRec(k + 19) : sb = VRec(k + 20)
+    If ss
+      If VicSprSpr = 0 : VicIrqFlags = VicIrqFlags | 4 : EndIf
+      VicSprSpr = VicSprSpr | ss
+    EndIf
+    If sb
+      If VicSprBg = 0 : VicIrqFlags = VicIrqFlags | 2 : EndIf
+      VicSprBg = VicSprBg | sb
+    EndIf
+    If ss Or sb : C64UpdateIrq(C64Clock) : EndIf
+    VicRecMerged = VicRecMerged + 1
+  Wend
+EndProcedure
+
+; Cycle 14: the chip's line logic, and a visible line's record for the drawing side.
 ProcedureRAM VicDrawLine()
-  Protected i.i, n.i, mode.i, p.i, g.i, c.i, col.i, mb.i, cb.i, bb.i, idle.i, xs.i, bc.i, lft.i, rgt.i, vy.i
-  Protected top.i, bottom.i, visible.i, t0.i, t1.i
+  Protected i.i, n.i, mb.i, top.i, bottom.i, vy.i, k.i, r.i
   If VicRaster = $30 And (VicReg($11) & $10) : VicDenSeen = 1 : EndIf
   VicBad = VicBadCondition()
   If VicRaster = 0 : VicVcBase = 0 : EndIf
@@ -582,6 +691,10 @@ ProcedureRAM VicDrawLine()
       VmLine(i) = VicMem(mb + ((VicVc + i) & $3FF))
       ColLine(i) = ColorRam((VicVc + i) & $3FF) & 15
     Next
+    ; the row for the drawing side
+    VicRowHead = VicRowHead + 1
+    r = (VicRowHead & (#VROWS - 1)) * 80
+    For i = 0 To 39 : VRow(r + i) = VmLine(i) : VRow(r + 40 + i) = ColLine(i) : Next
   EndIf
   ; the vertical border flip-flop
   If VicReg($11) & 8
@@ -592,39 +705,26 @@ ProcedureRAM VicDrawLine()
   If VicRaster = bottom : VicVBorder = 1 : EndIf
   If VicRaster = top And (VicReg($11) & $10) : VicVBorder = 0 : EndIf
   vy = VicRaster - VicViewY0
-  visible = Bool(vy >= 0 And vy < VicViewH)
-  If visible
-    VicOut = PlatformLine(vy)
-    bc = VicReg($20) & 15
-    If VicVBorder
-      VicFill(0, #VIC_W, bc)
-      ; sprites still collide under the border: draw them, then the border over them
-      If VicSprites() : VicFill(0, #VIC_W, bc) : EndIf
-    Else
-      mode = ((VicReg($11) >> 4) & 6) | ((VicReg($16) >> 4) & 1)
-      c = VicReg($21) & 15
-      If mode >= 5 : c = 0 : EndIf
-      xs = VicReg($16) & 7
-      ; the scroll gap left of the first cell (every cell writes all its 8 pixels)
-      For i = 32 To 31 + xs : PokeA(VicOut + i, c) : Next
-      cb = (VicReg($18) & $0E) << 10
-      bb = (VicReg($18) & 8) << 10
-      If PerfOn : t0 = PlatformUs() : EndIf
-      VicCells(mode, xs, cb, bb)
-      If PerfOn : t1 = PlatformUs() : PerfCellUs = PerfCellUs + t1 - t0 : EndIf
-      VicSprites()
-      If PerfOn : PerfSprUs = PerfSprUs + PlatformUs() - t1 : EndIf
-      If VicReg($16) & 8
-        lft = 32 : rgt = 352
-      Else
-        lft = 39 : rgt = 343
-      EndIf
-      VicFill(0, lft, bc)
-      VicFill(rgt, #VIC_W, bc)
-    EndIf
-    PlatformLineDone(vy)
+  If vy >= 0 And vy < VicViewH
+    If VicRecHead - PeekL(@VicRecDone) >= #VREC : PlatformRecordWait() : EndIf
+    k = (VicRecHead & (#VREC - 1)) * #VREC_W
+    VRec(k) = vy : VRec(k + 1) = VicRaster
+    VRec(k + 2) = VicVBorder | (VicDisplay << 1) | (VicSprActive << 2)
+    VRec(k + 3) = VicRc : VRec(k + 4) = VicVc : VRec(k + 5) = VicRowHead
+    For i = 0 To 3 : VRec(k + 6 + i) = VicMap(i) : Next
+    For i = 0 To 7 : VRec(k + 10 + i) = SprData(i) : Next
+    n = 0
+    For i = 0 To 7
+      If SprDisp(i) : n = n | (1 << i) : EndIf
+    Next
+    VRec(k + 18) = n
+    For i = 0 To 47 : VRec(k + 21 + i) = VicReg(i) : Next
+    PlatformFence()
+    VicRecHead = VicRecHead + 1
     VicLinesDrawn = VicLinesDrawn + 1
+    PlatformRecord()
   EndIf
+  VicMergeCollisions()
   If VicDisplay : VicVc = (VicVc + 40) & $3FF : EndIf
   If VicSprActive = 0 : ProcedureReturn : EndIf
   For n = 0 To 7

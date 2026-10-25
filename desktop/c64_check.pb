@@ -17,6 +17,14 @@ Procedure.i PlatformLine(viewY.i)
 EndProcedure
 Procedure PlatformLineDone(viewY.i)
 EndProcedure
+; one thread: a line's record is drawn as soon as it is made
+Procedure PlatformRecord()
+  VicRenderNext()
+EndProcedure
+Procedure PlatformRecordWait()
+EndProcedure
+Procedure PlatformFence()
+EndProcedure
 Procedure PlatformTick()
 EndProcedure
 Global HostFreq.q, HostStart.q

@@ -14,3 +14,7 @@ CompilerIf #C64_AUDIO = 1
   XIncludeFile "Shared/Bluetooth/sbc.pmi"
   XIncludeFile "Shared/Bluetooth/bt_audio.pmi"
 CompilerEndIf
+; the 6510 (Thumb-1)
+XIncludeFile "cpu6510.pmi"
+; the panel line converter (core 1), in this chip's own assembly
+XIncludeFile "vid565_rp2040.pico"

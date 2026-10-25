@@ -10,21 +10,24 @@
 #C64_STORE_SIZE = $F000
 FlashRegion "c64_store", #C64_STORE, #C64_STORE_SIZE, "raw"
 Global StoreAddr.i, StoreSize.i, StoreNameAddr.i
+; where the store is read: the flash region, or (a private test wrapper, on a board whose flash has no
+; room for it) a copy built into the image
+Global StoreBase.i = $10000000 + #C64_STORE
 
 Procedure.i StoreValid()
   Protected b.i
-  b = $10000000 + #C64_STORE
+  b = StoreBase
   If PeekA(b) = 67 And PeekA(b + 1) = 54 And PeekA(b + 2) = 52 And PeekA(b + 3) = 83 : ProcedureReturn 1 : EndIf
   ProcedureReturn 0
 EndProcedure
 Procedure.i StoreCount()
   If StoreValid() = 0 : ProcedureReturn 0 : EndIf
-  ProcedureReturn PeekU($10000000 + #C64_STORE + 4)
+  ProcedureReturn PeekU(StoreBase + 4)
 EndProcedure
 ; The index-th entry (0 = the first) of a type: 1 and StoreAddr / StoreSize, or 0.
 Procedure.i StoreFind(kind.i, index.i)
   Protected b.i, n.i, i.i, e.i, seen.i
-  b = $10000000 + #C64_STORE
+  b = StoreBase
   n = StoreCount()
   For i = 0 To n - 1
     e = b + 8 + i * 24

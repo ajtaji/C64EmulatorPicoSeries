@@ -1,0 +1,38 @@
+# The bench in PAL: `v switches the machine (NTSC is the default) and restarts it; then as bench_all.txt.
+expect d64=1 20
+send \`v
+expect standard=PAL 5
+send \`p
+send \`b
+wait 4
+send \`0
+wait 8
+send \`s
+expect PASSED 5
+send \`b
+wait 4
+send \`1
+wait 12
+send \`b
+wait 4
+send LOAD"*",8,1\n
+expect C64_STATUS 5
+wait 3
+send RUN\n
+wait 8
+send \`j
+wait 3
+send \`j
+wait 2
+send \`u
+wait 1
+send \`e
+wait 1
+send \`j
+wait 1
+send \`a
+wait 1
+send \`j
+wait 8
+send \`s
+expect SCREEN_END 5

@@ -10,11 +10,18 @@
 ; The platform provides (declared here, defined by the board or desktop file):
 ;   PlatformLine(viewY)    the address of the 384-byte line buffer for view line
 ;                          viewY (colour index 0..15, +16 where foreground)
+;   PlatformRecord()       a line's record is ready (VicRecHead moved): draw it now (desktop) or let
+;                          core 1 draw it (Pico) with VicRenderNext
+;   PlatformRecordWait()   core 0: the record ring is full - wait for the drawing side
+;   PlatformFence()        a memory barrier between the two cores (dmb), or nothing
 ;   PlatformLineDone(viewY)
 ;   PlatformFrameDone()
 ;   PlatformTick()         every 16 raster lines (about a millisecond): USB, input
 Declare.i PlatformLine(viewY.i)
 Declare PlatformLineDone(viewY.i)
+Declare PlatformRecord()
+Declare PlatformRecordWait()
+Declare PlatformFence()
 Declare PlatformFrameDone()
 Declare PlatformTick()
 Declare.i PlatformUs()

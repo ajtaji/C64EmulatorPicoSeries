@@ -2,6 +2,13 @@
 ; compiler's upload path), the watchdog, and the serial print helpers.
 XIncludeFile "RP2350/Lib/multicore_smp.pico2"
 #CLOCK_KHZ = 150000
+; the panel's SPI0 and its DMA request field, for pico_video.pmi (both moved from the RP2040:
+; SPI0 $4003C000 -> $40080000, TREQ_SEL bits 20:15 -> 22:17; spi.pico2 says why)
+#C64_SPI0 = $40080000
+#C64_DMA_TREQ_SHIFT = 17
+; the panel's line ring: 256 lines (96 KB) - the link (75 MHz) needs 19.8 ms for a 16.7 ms NTSC frame,
+; so the backlog grows ~38 lines a frame and one frame in about six is skipped
+#C64_VID_RING = 256
 XIncludeFile "RP2350/Lib/clocks.pico2"
 XIncludeFile "RP2350/Lib/timer.pico2"
 XIncludeFile "RP2350/Lib/uart.pico2"

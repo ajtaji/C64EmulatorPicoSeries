@@ -1,0 +1,27 @@
+; Core 1: one 384-pixel line of colour indices to RGB565, four pixels a word read through PalPair
+; (pico_video.pmi) - Thumb-2: ubfx picks each pixel's colour, the shifted index reads the pair.
+Global VidCvSrc.i, VidCvDst.i
+ProcedureRAM VidLine565(from.i, into.i)
+  VidCvSrc = from : VidCvDst = into
+  ASM
+    ldr r0, =global_vidcvsrc
+    ldr r0, [r0]
+    ldr r1, =global_vidcvdst
+    ldr r1, [r1]
+    ldr r2, =global_palpair
+    movs r3, #96
+  vl565_loop:
+    ldr r12, [r0], #4
+    and r6, r12, #15
+    ubfx lr, r12, #8, #4
+    orr r6, r6, lr, lsl #4
+    ldr r6, [r2, r6, lsl #2]
+    ubfx lr, r12, #16, #4
+    ubfx r12, r12, #24, #4
+    orr lr, lr, r12, lsl #4
+    ldr lr, [r2, lr, lsl #2]
+    strd r6, lr, [r1], #8
+    subs r3, #1
+    bne vl565_loop
+  EndASM
+EndProcedure

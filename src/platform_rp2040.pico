@@ -1,6 +1,11 @@
 ; The board's services for the C64: clocks, timer, USB serial (with the
 ; compiler's upload path), the watchdog, and the serial print helpers.
 #CLOCK_KHZ = 200000
+; the panel's SPI0 and its DMA request field, for pico_video.pmi
+#C64_SPI0 = $4003C000
+#C64_DMA_TREQ_SHIFT = 15
+; the panel's line ring: 64 lines (24 KB)
+#C64_VID_RING = 64
 XIncludeFile "RP2040/Lib/clocks.pico"
 XIncludeFile "RP2040/Lib/timer.pico"
 XIncludeFile "RP2040/Lib/uart.pico"

@@ -35,7 +35,7 @@ Global KeyCode.i, KeyChar.i, Wheel.i
 Global PadCount.i
 Global EmuAccum.d, EmuLastUs.q, EmuFrameUs.d = 1000000.0 * 19656 / 985248
 Global FpsShown.d, FpsFrames.i, FpsSince.q, IpsShown.i, IpsInstr.i, EmuUsShown.d, EmuUsSum.q
-Global ActiveTab.i, StatusLine$, RomDir$, Prefs$, WantPal.i = 1
+Global ActiveTab.i, StatusLine$, RomDir$, Prefs$, WantPal.i = 0
 Global *RomBasic, *RomKernal, *RomChar, *Program, ProgramSize.i, *Disk, DiskSize.i, ProgramKind$
 Global LastDraw.q, ShotFile$, ShotAtMs.q, GlCurrent.i
 Global TestDir$ = GetPathPart(ProgramFilename()) + "..\tests\lorenz\"
@@ -59,6 +59,14 @@ Procedure.i PlatformLine(viewY.i)
   ProcedureReturn @ScreenFrame(viewY * 384)
 EndProcedure
 Procedure PlatformLineDone(viewY.i)
+EndProcedure
+; one thread: a line's record is drawn as soon as it is made
+Procedure PlatformRecord()
+  VicRenderNext()
+EndProcedure
+Procedure PlatformRecordWait()
+EndProcedure
+Procedure PlatformFence()
 EndProcedure
 Procedure.i PlatformUs()
   ProcedureReturn 0
@@ -424,6 +432,7 @@ Procedure Main()
     Select LCase(ProgramParameter(k))
       Case "--mute" : SoundMuted = 1
       Case "--ntsc" : WantPal = 0
+      Case "--pal" : WantPal = 1
       Case "--roms" : k + 1 : roms$ = ProgramParameter(k)
       Case "--tab" : k + 1 : ActiveTab = Val(ProgramParameter(k))
       Case "--shot" : k + 1 : ShotFile$ = ProgramParameter(k) : If ShotAtMs = 0 : ShotAtMs = 5000 : EndIf
