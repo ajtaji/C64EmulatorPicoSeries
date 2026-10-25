@@ -48,30 +48,52 @@ badline cycle stealing, SID OSC3 / ENV3 and a CIA 2 timer NMI, one line each on 
 the desktop (bare: `c64_check --demo --prg tests\selftest.prg`; and RUN from BASIC) and on the Pico W
 (`tests/board/selftest.txt`, `docs/board-selftest.log`).
 
-## Pico W
+## Pico W and Pico 2 W
 
-Wiring is the LAFVIN kit's: LCD SCK GP2, MOSI GP3, CS GP5, DC GP6, RST GP7 (SPI0, 100 MHz); stick on
+Wiring is the LAFVIN kit's on both: LCD SCK GP2, MOSI GP3, CS GP5, DC GP6, RST GP7 (SPI0); stick on
 GP26/GP27; button A GP15 (fire), button B GP14 (SPACE).
 
-Core 0 runs the machine a frame at a time, paced to 50.12 Hz (PAL); core 1 converts each line to RGB565
-and streams it to the panel by DMA, and drives the radio. The 384 x 272 picture sits 1:1 in the middle
-of the 480 x 320 panel.
+**NTSC by default.** The C64 was a US machine: the Pico starts as the NTSC C64 (6567: 263 lines of 65
+cycles, 1.0227 MHz, 59.83 frames/s, a 384 x 242 view); `` `v `` over USB switches to PAL (6569: 312 x 63,
+0.985 MHz, 50.12 frames/s, 384 x 272) and back. The picture sits 1:1 in the middle of the 480 x 320 panel.
 
-Measured on the Pico W (COM7, 200 MHz, the time split from the firmware's status line):
+**Both cores work.** Core 0 runs the 6510, both CIAs, the SID and the VIC-II's line logic (raster,
+badlines, VC / RC, the border flip-flops, sprite DMA) and leaves each visible line as a record; core 1
+draws the records (cells, sprites, borders, the collisions), converts them to RGB565 (in the chip's own
+assembly) and sends them to the panel by DMA, and drives the radio. The panel skips a frame when its
+link is behind - the machine does not: every frame is still drawn, so sprite collisions stay exact.
 
-| Program | Frames/s | Worst frame | CPU | VIC-II | SID + line end |
-|---|---:|---:|---:|---:|---:|
-| BASIC at READY. (Open ROMs) | 50.1 (real time) | 17.9 ms | 4.1 ms | 11.3 ms | 1.7 ms |
-| Built-in demo: 3-voice music, sprite, raster IRQs | 50.1 (real time) | 19.0-19.7 ms | 4.6 ms | 8.3 ms | 5.6 ms |
-| Dungeon of ROTT V2 (free SEUCK game) from a .D64, in play | 50.1 (real time) | 18.9 ms | 5.5 ms | 9.3 ms | 2.8 ms |
-| `demo/c64demo.prg` (PureMetal: raster bars, scroller, sprite, 3 voices) | 50.1 (real time) | 18.7 ms | 4.5 ms | 7.8 ms | 5.1 ms |
+On the RP2350 the 6510 is `src/cpu6510_m33.pico2` (from `tools/gen_cpu_m33.py`): the same handlers with
+each instruction's tail (count, budget, opcode fetch through the page table, `ldr pc` through the
+dispatch table) and its operand fetches in Thumb-2. The RP2040 keeps the Thumb-1 `cpu6510.pmi`.
 
-No late frame in any of these runs (`docs/board-rott-pmdemo-4.log`). The VIC-II time includes any
-wait for core 1 to take lines from the ring: at BASIC, with little else to do, that is 5 ms a frame.
+Measured (compiler 883c4ae12; frames/s machine / panel; busy = each core's working time a second):
 
-With the Bluetooth speaker playing (A2DP, SBC stereo 48 kHz, encoded on core 1) the demo holds
-51 frames/s, worst frame 19.6 ms, no buffer underrun (`docs/board-audio-picow.log`). A PAL frame is 19.95 ms. The 6510 runs 1.6 M instructions/s (a C64 needs about 0.3 M). On the Pico W
-the SID is synthesised at 24 kHz and each sample written twice into the 48 kHz stream.
+| Board | Standard | Program | Frames/s | Worst frame | Core 0 busy | Core 1 busy |
+|---|---|---|---:|---:|---:|---:|
+| Pico W (RP2040, 200 MHz, SPI 100 MHz) | NTSC | BASIC, self-test, PureMetal demo | 60 / 60 | 12.4 ms | 57-60% | 61-63% |
+| | NTSC | Dungeon of ROTT, in play | 60 / 57-58 | 14.8 ms | 69-82% | 61-63% |
+| | PAL | all four | 51 / 51 | 16.0 ms | 56-80% | 58-60% |
+| Pico 2 W (RP2350, 150 MHz, SPI 75 MHz) | NTSC | all four | 60 / 44-45 | 13.8 ms | 57-82% | 48-54% |
+| | PAL | all four | 51 / 38 | 18.9 ms | 56-96%* | 46-49% |
+
+No late frame in any run (`docs/board-picow-ntsc.log`, `board-picow-pal.log`, `board-pico2w-ntsc.log`,
+`board-pico2w-pal-sid48k.log`). On the Pico 2 W the panel's link is the limit: the RP2350 stays at its
+SDK-proven 150 MHz, so SPI0 runs at 75 MHz and a 384-pixel line takes 82 us - at most ~50 frames/s NTSC,
+~45 PAL. *That PAL run still synthesised the SID at 48 kHz; it now runs at 24 kHz on every Pico (each
+sample written twice into the 48 kHz stream), which took the 3-voice demo's core 0 from 97% to 82% at NTSC.
+
+The 6510, Lorenz's CPU tests (batch 1: 140 tests, 608 M instructions), all passing:
+
+| Board | Core | Instructions/s |
+|---|---|---:|
+| Pico W | Thumb-1 (`cpu6510.pmi`) | 1.60 M |
+| Pico 2 W | the same core | 1.49 M |
+| Pico 2 W | Thumb-2 (`cpu6510_m33.pico2`) | 1.88 M (+26%) |
+
+A C64 needs about 0.3 M a second. With the Bluetooth speaker playing (Pico W, A2DP, SBC stereo 48 kHz,
+encoded on core 1) the PAL demo held 51 frames/s with no buffer underrun (`docs/board-audio-picow.log`,
+before the two-core split; the speaker is not tested on the new build yet).
 
 ROMs and programs go in the C64's flash region ($1F0000, 60 KB):
 
@@ -94,8 +116,10 @@ USB serial: anything typed goes to the C64's keyboard; `` `s `` prints the scree
 
 ```
 & "C:\Program Files\PureBasic\Compilers\pbcompilerc.exe" desktop\c64_desktop.pb /EXE desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
-desktop\PureMetalC64.exe [program.prg|disk.d64] [--roms folder]
+desktop\PureMetalC64.exe [program.prg|disk.d64] [--roms folder] [--pal] [--mute]
 ```
+
+The window starts as the NTSC C64 (60 frames/s); the toolbar's NTSC / PAL button or `--pal` switches.
 
 Choose the ROM folder once with the toolbar's **ROMs...** (it is remembered). Keys: the PC keyboard is the
 C64's (Esc = RUN/STOP, Tab = CTRL, Left Ctrl = C=, Page Up = RESTORE, Home = CLR/HOME, F1-F4, keypad 5 / 7
@@ -104,14 +128,15 @@ F5 run/pause, F6 step, F7 frame, F8 reset, F11 full screen. Panes: CPU (register
 VIC-II, SID (voices and the output), CIAs (timers, TOD, keyboard matrix), Tests (Lorenz's CPU tests on the
 running machine), Programs.
 
-`desktop\c64_check.exe` is the console check: `--bench [test]` (Lorenz on the whole machine),
-`--demo`, `--boot <romdir> [--prg f] [--d64 f] [--type text] [--frames n] [--shot f.bmp] [--wav f.wav]`.
+`desktop\c64_check.exe` is the console check (PAL unless `--ntsc`: its reference pictures are PAL):
+`--bench [test]` (Lorenz on the whole machine), `--demo [--prg f]`, `--boot <romdir> [--prg f] [--d64 f] [--type text] [--frames n] [--shot f.bmp] [--wav f.wav]`.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `tools/gen_cpu.py` | the 6510, generated for both languages from one opcode table |
+| `tools/gen_cpu_m33.py` | the RP2350's 6510 (`src/cpu6510_m33.pico2`): the same handlers, Thumb-2 tails and fetches |
 | `src/*.pmi` | the machine (shared by both chips and, through `tools/port_desktop.py`, by the desktop) |
 | `src/pico_*.pmi`, `src/platform_*`, `src/libs_*` | the Pico side: panel, audio, controls, flash store |
 | `src/c64.picow`, `src/c64.pico2w` | the firmware wrappers |

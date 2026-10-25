@@ -1,0 +1,289 @@
+C64 LORENZ batch 1 of 3 clk_khz=150001
+
+Commodore 64 Emulator Test Suite
+Public Domain, no Copyright
+
+basic commands - ok
+ldab
+ldab - ok
+ldaz
+ldaz - ok
+ldazx
+ldazx - ok
+ldaa
+ldaa - ok
+ldaax
+ldaax - ok
+ldaay
+ldaay - ok
+ldaix
+ldaix - ok
+ldaiy
+ldaiy - ok
+staz
+staz - ok
+stazx
+stazx - ok
+staa
+staa - ok
+staax
+staax - ok
+staay
+staay - ok
+staix
+staix - ok
+staiy
+staiy - ok
+ldxb
+ldxb - ok
+ldxz
+ldxz - ok
+ldxzy
+ldxzy - ok
+ldxa
+ldxa - ok
+ldxay
+ldxay - ok
+stxz
+stxz - ok
+stxzy
+stxzy - ok
+stxa
+stxa - ok
+ldyb
+ldyb - ok
+ldyz
+ldyz - ok
+ldyzx
+ldyzx - ok
+ldya
+ldya - ok
+ldyax
+ldyax - ok
+styz
+styz - ok
+styzx
+styzx - ok
+stya
+stya - ok
+taxn
+taxn - ok
+tayn
+tayn - ok
+txan
+txan - ok
+tyan
+tyan - ok
+tsxn
+tsxn - ok
+txsn
+txsn - ok
+phan
+phan - ok
+plan
+plan - ok
+phpn
+phpn - ok
+plpn
+plpn - ok
+inxn
+inxn - ok
+inyn
+inyn - ok
+dexn
+dexn - ok
+deyn
+deyn - ok
+incz
+incz - ok
+inczx
+inczx - ok
+inca
+inca - ok
+incax
+incax - ok
+decz
+decz - ok
+deczx
+deczx - ok
+deca
+deca - ok
+decax
+decax - ok
+asln
+asln - ok
+aslz
+aslz - ok
+aslzx
+aslzx - ok
+asla
+asla - ok
+aslax
+aslax - ok
+lsrn
+lsrn - ok
+lsrz
+lsrz - ok
+lsrzx
+lsrzx - ok
+lsra
+lsra - ok
+lsrax
+lsrax - ok
+roln
+roln - ok
+rolz
+rolz - ok
+rolzx
+rolzx - ok
+rola
+rola - ok
+rolax
+rolax - ok
+rorn
+rorn - ok
+rorz
+rorz - ok
+rorzx
+rorzx - ok
+rora
+rora - ok
+rorax
+rorax - ok
+andb
+andb - ok
+andz
+andz - ok
+andzx
+andzx - ok
+anda
+anda - ok
+andax
+andax - ok
+anday
+anday - ok
+andix
+andix - ok
+andiy
+andiy - ok
+orab
+orab - ok
+oraz
+oraz - ok
+orazx
+orazx - ok
+oraa
+oraa - ok
+oraax
+oraax - ok
+oraay
+oraay - ok
+oraix
+oraix - ok
+oraiy
+oraiy - ok
+eorb
+eorb - ok
+eorz
+eorz - ok
+eorzx
+eorzx - ok
+eora
+eora - ok
+eorax
+eorax - ok
+eoray
+eoray - ok
+eorix
+eorix - ok
+eoriy
+eoriy - ok
+clcn
+clcn - ok
+secn
+secn - ok
+cldn
+cldn - ok
+sedn
+sedn - ok
+clin
+clin - ok
+sein
+sein - ok
+clvn
+clvn - ok
+adcb
+adcb - ok
+adcz
+adcz - ok
+adczx
+adczx - ok
+adca
+adca - ok
+adcax
+adcax - ok
+adcay
+adcay - ok
+adcix
+adcix - ok
+adciy
+adciy - ok
+sbcb
+sbcb - ok
+sbcz
+sbcz - ok
+sbczx
+sbczx - ok
+sbca
+sbca - ok
+sbcax
+sbcax - ok
+sbcay
+sbcay - ok
+sbcix
+sbcix - ok
+sbciy
+sbciy - ok
+cmpb
+cmpb - ok
+cmpz
+cmpz - ok
+cmpzx
+cmpzx - ok
+cmpa
+cmpa - ok
+cmpax
+cmpax - ok
+cmpay
+cmpay - ok
+cmpix
+cmpix - ok
+cmpiy
+cmpiy - ok
+cpxb
+cpxb - ok
+cpxz
+cpxz - ok
+cpxa
+cpxa - ok
+cpyb
+cpyb - ok
+cpyz
+cpyz - ok
+cpya
+cpya - ok
+bitz
+bitz - ok
+bita
+bita - ok
+brkn
+brkn - ok
+rtin
+rtin - ok
+jsrw
+jsrw - ok
+rtsnLORENZ_NEXT rtsn
+
+LORENZ_RESULT batch=1 tests=140 failures=0 instructions=607985140 cycles=2114602703 us=323621951 kips=1878
+
+>>> expect 'LORENZ_RESULT': ok
