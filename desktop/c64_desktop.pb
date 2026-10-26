@@ -337,6 +337,76 @@ EndProcedure
 
 ; ---------------------------------------------------------------- one frame of the window
 
+
+; ---------------------------------------------------------------- full screen
+; The Full screen button or F11: a borderless window over the monitor the window is on (no display-mode
+; change) showing only the C64's picture, border included, at its real pixel aspect - PAL pixels are
+; 0.9365 as wide as they are high, NTSC 0.75 - as large as fits and centred, black around it. Emulation,
+; sound and the frame rate are the window's. Esc leaves (and is not the C64's RUN/STOP there: End is), and
+; the window comes back exactly as it was. The pointer hides after two idle seconds.
+Global FullScreen.i, FsStyle.i, FsPlacement.WINDOWPLACEMENT, FsCursorHidden.i, FsMouseX.i, FsMouseY.i, FsMouseMs.q
+Global FsViewX.f, FsViewY.f, FsViewW.f, FsViewH.f
+
+Procedure FsShowCursor(show.i)
+  If show And FsCursorHidden : ShowCursor_(#True) : FsCursorHidden = 0 : EndIf
+  If show = 0 And FsCursorHidden = 0 : ShowCursor_(#False) : FsCursorHidden = 1 : EndIf
+EndProcedure
+
+Procedure EnterFullScreen()
+  Protected hwnd.i = WindowID(Win), mi.MONITORINFO
+  If FullScreen : ProcedureReturn : EndIf
+  FsPlacement\length = SizeOf(WINDOWPLACEMENT) : GetWindowPlacement_(hwnd, @FsPlacement)
+  FsStyle = GetWindowLongPtr_(hwnd, #GWL_STYLE)
+  mi\cbSize = SizeOf(MONITORINFO) : GetMonitorInfo_(MonitorFromWindow_(hwnd, 2), @mi)   ; 2: the nearest monitor
+  SetWindowLongPtr_(hwnd, #GWL_STYLE, FsStyle & ~(#WS_CAPTION | #WS_THICKFRAME | #WS_MINIMIZEBOX | #WS_MAXIMIZEBOX | #WS_SYSMENU))
+  SetWindowPos_(hwnd, #HWND_TOP, mi\rcMonitor\left, mi\rcMonitor\top, mi\rcMonitor\right - mi\rcMonitor\left, mi\rcMonitor\bottom - mi\rcMonitor\top, #SWP_FRAMECHANGED | #SWP_NOOWNERZORDER | #SWP_SHOWWINDOW)
+  FullScreen = 1 : KbNoEsc = 1 : FsMouseMs = ElapsedMilliseconds()
+  MeasureWindow()
+EndProcedure
+
+Procedure LeaveFullScreen()
+  Protected hwnd.i = WindowID(Win)
+  If FullScreen = 0 : ProcedureReturn : EndIf
+  SetWindowLongPtr_(hwnd, #GWL_STYLE, FsStyle)
+  SetWindowPlacement_(hwnd, @FsPlacement)
+  SetWindowPos_(hwnd, 0, 0, 0, 0, 0, #SWP_FRAMECHANGED | #SWP_NOMOVE | #SWP_NOSIZE | #SWP_NOZORDER | #SWP_NOOWNERZORDER)
+  FullScreen = 0 : KbNoEsc = 0 : FsShowCursor(1)
+  MeasureWindow()
+EndProcedure
+
+; The picture's real width / height: 384 columns of the standard's pixel aspect over its rows.
+Procedure.f FsAspect()
+  Protected par.f = 0.9365
+  If C64Pal = 0 : par = 0.75 : EndIf
+  ProcedureReturn 384 * par / VicViewH
+EndProcedure
+
+Procedure DrawFullScreen(pw.f, ph.f)
+  Protected a.f = FsAspect(), vw.f, vh.f, mx.i, my.i
+  vw = pw : vh = vw / a
+  If vh > ph : vh = ph : vw = vh * a : EndIf
+  vw = Round(vw, #PB_Round_Nearest) : vh = Round(vh, #PB_Round_Nearest)
+  FsViewW = vw : FsViewH = vh : FsViewX = Round((pw - vw) / 2, #PB_Round_Down) : FsViewY = Round((ph - vh) / 2, #PB_Round_Down)
+  Neon_Box(0, 0, pw, ph, 0, 0, 0)
+  ViewDrawScreenAt(FsViewX, FsViewY, FsViewW, FsViewH)
+  ; the pointer hides after two seconds without moving, and shows again when it moves
+  mx = WindowMouseX(Win) : my = WindowMouseY(Win)
+  If mx <> FsMouseX Or my <> FsMouseY : FsMouseX = mx : FsMouseY = my : FsMouseMs = ElapsedMilliseconds() : FsShowCursor(1) : EndIf
+  If ElapsedMilliseconds() - FsMouseMs > 2000 : FsShowCursor(0) : EndIf
+EndProcedure
+
+; The window's own keys, from the controls table (controls.pbi): F5 F6 F7 F8, F11, and Esc in full screen.
+Procedure WindowAction(act.i)
+  Select act
+    Case #ACT_RUNPAUSE : Paused = 1 - Paused : EmuLastUs = ElapsedMicroseconds()
+    Case #ACT_STEP : StepInstruction()
+    Case #ACT_FRAME : StepFrame()
+    Case #ACT_RESET : MachineStart()
+    Case #ACT_FULLSCREEN : If FullScreen : LeaveFullScreen() : Else : EnterFullScreen() : EndIf
+    Case #ACT_LEAVEFULL : LeaveFullScreen()
+  EndSelect
+EndProcedure
+
 ; ---------------------------------------------------------------- --pointer-test
 ; The real pointer is shared with everyone on this desktop, so it is never moved: the chrome is driven with
 ; synthetic positions in the units WindowMouseX/Y give a DPI-aware window (physical pixels), through the same
@@ -348,7 +418,7 @@ Global PtLog$, PtFile$, PtX.f, PtY.f, PtDown.i, PtCase.i, PtPoint.i, PtFrame.i, 
 Global PtCount.i, Dim PtName$(40)
 
 Procedure PtInit()
-  Protected n$ = "Open|ROMs|Pause|Step|Frame|Reset|Mute|Standard|Joy keys|tab 0|tab 2|tab 5|mem back|mem PC|Run tests|Open file|Swap disk|list first row|list last row"
+  Protected n$ = "Open|ROMs|Pause|Step|Frame|Reset|Mute|Standard|Joy keys|Full screen|tab 0|tab 2|tab 5|tab 6|mem back|mem PC|Run tests|Open file|Swap disk|list first row|list last row"
   Protected i.i
   PtCount = CountString(n$, "|") + 1
   For i = 0 To PtCount - 1 : PtName$(i) = StringField(n$, i + 1, "|") : Next
@@ -440,6 +510,105 @@ Procedure PtStep()
   EndSelect
 EndProcedure
 
+
+; ---------------------------------------------------------------- --fullscreen-test
+; Full screen by its own keys, no real pointer or keyboard: F11 and Esc are posted to the window's GL gadget
+; (as the keyboard would send them), and the keys the C64 sees are checked through this thread's own
+; keyboard state (SetKeyboardState, which no other program reads). Checked: Esc in the window is RUN/STOP and
+; leaves the window alone; F11 covers the window's monitor, the picture has the standard's real shape, fits
+; and is centred, the machine runs on, Esc is not RUN/STOP there (End is), the scale is measured again; Esc
+; leaves and the window's rectangle and style come back exactly; then the same in PAL.
+Global FtOn.i, FtFile$, FtShot$, FtStep.i, FtWait.i, FtFails.i, FtLog$, FtDone.i, FtRect.RECT, FtStyle.i, FtFrame.i, FtMs.q
+Global Dim FtKeys.a(255)
+
+Procedure FtCheck(ok.i, what$)
+  If ok = 0 : FtFails + 1 : FtLog$ + "FAIL " : Else : FtLog$ + "ok   " : EndIf
+  FtLog$ + what$ + #LF$
+EndProcedure
+Procedure FtKey(vk.i)
+  PostMessage_(GadgetID(Gl), #WM_KEYDOWN, vk, 0) : PostMessage_(GadgetID(Gl), #WM_KEYUP, vk, 0)
+EndProcedure
+; The C64's RUN/STOP (matrix column 7, row 7) with only this key down, through this thread's keyboard state.
+Procedure.i FtRunStopWith(vk.i)
+  Protected i.i, r.i
+  For i = 0 To 255 : FtKeys(i) = 0 : Next
+  FtKeys(vk) = $80
+  SetKeyboardState_(@FtKeys(0))
+  KbApply(1)
+  r = Bool(KeyRows(7) & $80)
+  FtKeys(vk) = 0 : SetKeyboardState_(@FtKeys(0))
+  ProcedureReturn r
+EndProcedure
+
+Procedure FtFull(std$)
+  Protected r.RECT, mi.MONITORINFO, hwnd.i = WindowID(Win), a.f = FsAspect()
+  GetWindowRect_(hwnd, @r) : mi\cbSize = SizeOf(MONITORINFO) : GetMonitorInfo_(MonitorFromWindow_(hwnd, 2), @mi)
+  FtCheck(FullScreen, std$ + ": F11 entered full screen")
+  FtCheck(Bool(r\left = mi\rcMonitor\left And r\top = mi\rcMonitor\top And r\right = mi\rcMonitor\right And r\bottom = mi\rcMonitor\bottom),
+          std$ + ": the window covers its monitor (" + Str(r\left) + "," + Str(r\top) + " - " + Str(r\right) + "," + Str(r\bottom) + "; monitor " +
+          Str(mi\rcMonitor\left) + "," + Str(mi\rcMonitor\top) + " - " + Str(mi\rcMonitor\right) + "," + Str(mi\rcMonitor\bottom) + ")")
+  FtCheck(Bool(Abs(FsViewW / FsViewH - a) < 0.005), std$ + ": the picture " + StrF(FsViewW, 0) + "x" + StrF(FsViewH, 0) + " has the standard's shape " + StrF(FsViewW / FsViewH, 4) + " (" + StrF(a, 4) + ": 384 x the pixel aspect / " + Str(VicViewH) + " rows)")
+  FtCheck(Bool(FsViewW <= PhysW And FsViewH <= PhysH And (Abs(FsViewW - PhysW) <= 1 Or Abs(FsViewH - PhysH) <= 1)), std$ + ": as large as fits in " + Str(PhysW) + "x" + Str(PhysH))
+  FtCheck(Bool(Abs(FsViewX * 2 + FsViewW - PhysW) <= 1 And Abs(FsViewY * 2 + FsViewH - PhysH) <= 1), std$ + ": centred at " + StrF(FsViewX, 0) + "," + StrF(FsViewY, 0))
+  FtCheck(Bool(Abs(Neon_UIScale - PhysW / Util_WinWidth) < 0.01), std$ + ": the scale measured again: " + StrF(Neon_UIScale, 3))
+  FtCheck(Bool(FtRunStopWith(#VK_ESCAPE) = 0), std$ + ": Esc is not RUN/STOP in full screen")
+  FtCheck(FtRunStopWith(#VK_END), std$ + ": End is RUN/STOP in full screen")
+EndProcedure
+
+Procedure FtLeft(std$)
+  Protected r.RECT, hwnd.i = WindowID(Win)
+  GetWindowRect_(hwnd, @r)
+  FtCheck(Bool(FullScreen = 0), std$ + ": Esc left full screen")
+  FtCheck(Bool(r\left = FtRect\left And r\top = FtRect\top And r\right = FtRect\right And r\bottom = FtRect\bottom),
+          std$ + ": the window's rectangle is back (" + Str(r\left) + "," + Str(r\top) + " - " + Str(r\right) + "," + Str(r\bottom) + ")")
+  FtCheck(Bool(GetWindowLongPtr_(hwnd, #GWL_STYLE) = FtStyle), std$ + ": the window's style is back")
+  FtCheck(FtRunStopWith(#VK_ESCAPE), std$ + ": Esc is RUN/STOP in the window again")
+EndProcedure
+
+; One step, after each frame is drawn.
+Procedure FtStep()
+  Protected f.i, frame0.i
+  If FtDone : ProcedureReturn : EndIf
+  FtWait + 1
+  If FtWait < 20 : ProcedureReturn : EndIf   ; frames for each step to settle
+  If FtStep = 3 And ElapsedMilliseconds() - FtMs < 1000 : ProcedureReturn : EndIf   ; a second of full screen
+  FtWait = 0 : FtStep + 1
+  Select FtStep
+    Case 1
+      GetWindowRect_(WindowID(Win), @FtRect) : FtStyle = GetWindowLongPtr_(WindowID(Win), #GWL_STYLE)
+      FtCheck(Bool(C64Pal = 0), "the window starts as the NTSC C64")
+      FtCheck(FtRunStopWith(#VK_ESCAPE), "Esc is RUN/STOP in the window")
+      FtCheck(FtRunStopWith(#VK_END), "End is RUN/STOP in the window")
+      FtKey(#VK_ESCAPE)
+    Case 2
+      FtCheck(Bool(FullScreen = 0), "Esc in the window leaves the window as it is")
+      FtKey(#VK_F11)
+    Case 3
+      FtFrame = C64Frame : FtMs = ElapsedMilliseconds()
+    Case 4
+      FtFull("NTSC")
+      FtCheck(Bool(Abs((C64Frame - FtFrame) * 1000.0 / (ElapsedMilliseconds() - FtMs) - 59.83) < 6), "NTSC: the machine runs on at its own rate in full screen (" +
+              StrF((C64Frame - FtFrame) * 1000.0 / (ElapsedMilliseconds() - FtMs), 1) + " frames a second, 59.83 wanted)")
+      If FtShot$ : SaveWindowShot(FtShot$) : EndIf
+      FtKey(#VK_ESCAPE)
+    Case 5
+      FtLeft("NTSC")
+      WantPal = 1 : MachineStart()
+    Case 6
+      FtCheck(C64Pal, "switched to PAL")
+      FtKey(#VK_F11)
+    Case 7
+      FtFull("PAL")
+      FtKey(#VK_ESCAPE)
+    Case 8
+      FtLeft("PAL")
+      FtLog$ + "fullscreen-test: " + Str(FtFails) + " failures" + #LF$
+      f = CreateFile(#PB_Any, FtFile$)
+      If f : WriteString(f, FtLog$) : CloseFile(f) : EndIf
+      FtDone = 1 : Quit = 1
+  EndSelect
+EndProcedure
+
 Procedure Tick()
   Protected now.q, dt.f, mx.i, my.i, down.b, toolH.f, x.f, gx.f, gy.f, gw.f, gh.f, scale.f, side.f
   Protected panelX.f, label$, f$
@@ -475,6 +644,15 @@ Procedure Tick()
   glClear_(#GL_COLOR_BUFFER_BIT)
   glEnable_(#GL_BLEND) : glBlendFunc_(#GL_SRC_ALPHA, #GL_ONE_MINUS_SRC_ALPHA)
 
+  If FullScreen
+    DrawFullScreen(PhysW, PhysH)
+    Neon_ChromeEndFrame()
+    If ShotFile$ <> "" And now >= ShotAtMs : SaveWindowShot(ShotFile$) : Quit = 1 : EndIf
+    SetGadgetAttribute(Gl, #PB_OpenGL_FlipBuffers, #True)
+    If FtOn : FtStep() : EndIf
+    ProcedureReturn
+  EndIf
+
   toolH = Round(Neon_S(40), #PB_Round_Nearest)
   Neon_Box(0, 0, PhysW, toolH, Neon_C_HeadR, Neon_C_HeadG, Neon_C_HeadB)
   x = Neon_S(8)
@@ -498,24 +676,26 @@ Procedure Tick()
   If Btn("Joy keys", x, Neon_S(6), Neon_S(104), toolH - Neon_S(12), label$, KbJoyKeys)
     If KbJoyKeys = 0 : KbJoyKeys = 1 : KbJoyPort = 2 : ElseIf KbJoyPort = 2 : KbJoyPort = 1 : Else : KbJoyKeys = 0 : EndIf
   EndIf : x + Neon_S(110)
+  If Btn("Full screen", x, Neon_S(6), Neon_S(124), toolH - Neon_S(12), "Full screen  F11") : WindowAction(#ACT_FULLSCREEN) : EndIf : x + Neon_S(130)
   Neon_Text(*Neon_FontMono, x + Neon_S(8), toolH / 2 - Neon_S(8), StrD(FpsShown, 1) + " fps  " + StrD(EmuUsShown / 1000.0, 2) + " ms/frame  " + Str(IpsShown / 1000) + "k instr/s   " + StatusLine$, Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
 
   side = Round(Neon_S(600), #PB_Round_Nearest)
   If side > PhysW * 0.55 : side = PhysW * 0.55 : EndIf
   gw = PhysW - side - Neon_S(24) : gh = PhysH - toolH - Neon_S(24)
-  scale = gw / 384.0 : If gh / 272.0 < scale : scale = gh / 272.0 : EndIf
+  scale = gw / 384.0 : If gh / VicViewH < scale : scale = gh / VicViewH : EndIf
   If scale >= 1.0 : scale = Int(scale) : EndIf
-  gx = Neon_S(12) + (gw - 384 * scale) / 2 : gy = toolH + Neon_S(12) + (gh - 272 * scale) / 2
+  gx = Neon_S(12) + (gw - 384 * scale) / 2 : gy = toolH + Neon_S(12) + (gh - VicViewH * scale) / 2
   ViewDrawScreen(gx, gy, scale)
   If Stopped : Neon_Text(*Neon_FontBold, gx + Neon_S(8), gy + Neon_S(8), "CPU STOPPED: opcode $" + Hex2(BadOpcode) + " at $" + Hex4(PC), Neon_C_RedR, Neon_C_RedG, Neon_C_RedB) : EndIf
 
   panelX = PhysW - side - Neon_S(6)
-  ActiveTab = Neon_TabStrip(1, panelX, toolH + Neon_S(6), side, Neon_S(30), "CPU|VIC-II|SID|CIAs|Tests|Programs", ActiveTab)
+  ActiveTab = Neon_TabStrip(1, panelX, toolH + Neon_S(6), side, Neon_S(30), "CPU|VIC-II|SID|CIAs|Tests|Programs|Controls", ActiveTab)
   ViewDrawPanel(ActiveTab, panelX, toolH + Neon_S(40), side, PhysH - toolH - Neon_S(46))
 
   Neon_ChromeEndFrame()
   If ShotFile$ <> "" And now >= ShotAtMs : SaveWindowShot(ShotFile$) : Quit = 1 : EndIf
   SetGadgetAttribute(Gl, #PB_OpenGL_FlipBuffers, #True)
+  If FtOn : FtStep() : EndIf
   If PtOn
     PtStep()
     If PtDone : Quit = 1 : EndIf
@@ -546,6 +726,8 @@ Procedure Main()
   Gl = OpenGLWindow("PureMetal C64", 1440, 860, #PB_Window_SystemMenu | #PB_Window_ScreenCentered | #PB_Window_SizeGadget | #PB_Window_MinimizeGadget | #PB_Window_MaximizeGadget)
   If Gl = 0 : MessageRequester("PureMetal C64", "OpenGL could not be started.") : End 1 : EndIf
   Win = Util_MainWindowID
+  ; the engine binds Esc to a shortcut of its own; here Esc is the C64's RUN/STOP in the window and leaves full screen
+  RemoveKeyboardShortcut(Win, #PB_Shortcut_Escape)
   MeasureWindow()   ; the scale, the fonts, the canvas
   GL_SetVSync(1)
   ViewInit()
@@ -561,6 +743,8 @@ Procedure Main()
       Case "--pal" : WantPal = 1
       Case "--roms" : k + 1 : roms$ = ProgramParameter(k)
       Case "--tab" : k + 1 : ActiveTab = Val(ProgramParameter(k))
+      Case "--fullscreen-test" : k + 1 : FtFile$ = ProgramParameter(k) : FtOn = 1
+        If k + 1 < CountProgramParameters() And Left(ProgramParameter(k + 1), 2) <> "--" : k + 1 : FtShot$ = ProgramParameter(k) : EndIf
       Case "--pointer-test" : k + 1 : PtFile$ = ProgramParameter(k) : PtOn = 1
       Case "--shot" : k + 1 : ShotFile$ = ProgramParameter(k) : If ShotAtMs = 0 : ShotAtMs = 5000 : EndIf
       Case "--seconds" : k + 1 : ShotAtMs = Val(ProgramParameter(k)) * 1000
@@ -572,6 +756,7 @@ Procedure Main()
   ViewFilesRefresh(ViewFolder$)
   If file$ <> "" : OpenProgram(file$) : Else : MachineStart() : EndIf
   If PtOn : SoundMuted = 1 : PtInit() : EndIf
+  If FtOn : SoundMuted = 1 : EndIf
   FpsSince = ElapsedMilliseconds() : LastDraw = FpsSince
   If ShotFile$ <> "" : ShotAtMs + FpsSince : EndIf
   Repeat
@@ -586,13 +771,7 @@ Procedure Main()
             Select et
               Case #PB_EventType_KeyDown
                 k = GetGadgetAttribute(Gl, #PB_OpenGL_Key) : KeyCode = k
-                Select k
-                  Case #PB_Shortcut_F5 : Paused = 1 - Paused : EmuLastUs = ElapsedMicroseconds()
-                  Case #PB_Shortcut_F6 : StepInstruction()
-                  Case #PB_Shortcut_F7 : StepFrame()
-                  Case #PB_Shortcut_F8 : MachineStart()
-                  Case #PB_Shortcut_F11 : GL_ToggleFullscreen() : MeasureWindow()
-                EndSelect
+                WindowAction(ControlsAction(k, FullScreen))
               Case #PB_EventType_Input : KeyChar = GetGadgetAttribute(Gl, #PB_OpenGL_Input)
               Case #PB_EventType_MouseWheel : Wheel + GetGadgetAttribute(Gl, #PB_OpenGL_WheelDelta)
             EndSelect
@@ -603,7 +782,8 @@ Procedure Main()
     Tick()
   Until Quit
   SoundEnd()
-  If PtOn : End PtFails : EndIf   ; --pointer-test: the number of failures
+  If PtOn : End PtFails : EndIf
+  If FtOn : End FtFails : EndIf   ; --pointer-test: the number of failures
 EndProcedure
 Main()
 

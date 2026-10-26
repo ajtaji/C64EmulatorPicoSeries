@@ -132,9 +132,16 @@ Procedure.s DisLine(addr.i)
 EndProcedure
 
 ; ---------------------------------------------------------------- the screen
-Procedure ViewDrawScreen(x.f, y.f, scale.f)
-  Protected *dst.Long, yy.i, xx.i, *src
-  For yy = 0 To 271
+; The machine's picture into the screen texture: as many rows as the standard's view (VicViewH: 272 PAL,
+; 242 NTSC), so the texture is exactly the picture, border included.
+Procedure ViewScreenUpdate()
+  Protected *dst.Long, yy.i, xx.i, *src, rows.i = VicViewH
+  If rows < 1 Or rows > 272 : rows = 272 : EndIf
+  If ViewScreen\sprite\Height <> rows
+    glDeleteTextures_(1, @ViewScreen\sprite\TextureID) : FreeMemory(ViewScreen\pixels)
+    ViewTextureMake(@ViewScreen, 384, rows)
+  EndIf
+  For yy = 0 To rows - 1
     *dst = ViewRow(@ViewScreen, yy)
     *src = @ScreenFrame(yy * 384)
     For xx = 0 To 383
@@ -142,8 +149,23 @@ Procedure ViewDrawScreen(x.f, y.f, scale.f)
     Next
   Next
   ViewTextureUpload(@ViewScreen)
-  Neon_Box(x - 2, y - 2, 384 * scale + 4, 272 * scale + 4, 0, 0, 0)
+EndProcedure
+
+; The window's view: square pixels, at an integer scale where it fits.
+Procedure ViewDrawScreen(x.f, y.f, scale.f)
+  ViewScreenUpdate()
+  Neon_Box(x - 2, y - 2, 384 * scale + 4, ViewScreen\sprite\Height * scale + 4, 0, 0, 0)
   ViewTextureDraw(@ViewScreen, x, y, scale)
+EndProcedure
+
+; The picture into a w x h rectangle (full screen: w / h is the picture's real shape). The engine's sprite
+; draw sizes its quad from the sprite's width and height, so a copy of the sprite carries the target size.
+Procedure ViewDrawScreenAt(x.f, y.f, w.f, h.f)
+  Protected spr.GLSprite
+  ViewScreenUpdate()
+  CopyStructure(@ViewScreen\sprite, @spr, GLSprite)
+  spr\Width = w : spr\Height = h
+  DrawGLSprite(@spr, x, y, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, #True, -1, -1, -1, -1, #True)
 EndProcedure
 
 Procedure.f ViewLine(x.f, y.f, t$, r.f = -1, g.f = 0, b.f = 0)
@@ -363,6 +385,29 @@ Procedure ViewPrograms(x.f, y.f, w.f, h.f)
   Neon_ListEnd()
 EndProcedure
 
+Global ViewControlsTop.i
+; Every mapping of controls.pbi's table - the same rows the keyboard code reads.
+Procedure ViewControls(x.f, y.f, w.f, h.f)
+  Protected head$, kind.i, last.i = -1, c$
+  Neon_Panel(x, y, w, h, "Controls", Neon_C_AccR, Neon_C_AccG, Neon_C_AccB)
+  y + Neon_S(32) : x + Neon_S(10)
+  Neon_Text(*Neon_FontSmall, x, y, "PC key  ->  C64. Joystick on the PC keys: port " + Str(KbJoyPort) + StringField(" (off)|", 1 + KbJoyKeys, "|") + " (the toolbar's Joy keys button).", Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
+  y + Neon_S(26)
+  Neon_ListBegin(9, x, y, w - Neon_S(20), h - Neon_S(70), Neon_S(22), @ViewControlsTop)
+  ForEach Controls()
+    If Controls()\hidden : Continue : EndIf
+    Select Controls()\kind
+      Case #CTL_KEY, #CTL_RESTORE, #CTL_NOTE : kind = 0 : head$ = "C64 keyboard"
+      Case #CTL_JOY, #CTL_PAD : kind = 1 : head$ = "Joystick and gamepad"
+      Default : kind = 2 : head$ = "The window"
+    EndSelect
+    If kind <> last : Neon_ListItem(head$, 0, #False, #True) : last = kind : EndIf
+    c$ = LSet(Controls()\pc$, 28) + "  " + Controls()\c64$
+    Neon_ListItem(c$, 1)
+  Next
+  Neon_ListEnd()
+EndProcedure
+
 Procedure ViewDrawPanel(tab.i, x.f, y.f, w.f, h.f)
   Select tab
     Case 0 : ViewCpu(x, y, w, h)
@@ -371,6 +416,7 @@ Procedure ViewDrawPanel(tab.i, x.f, y.f, w.f, h.f)
     Case 3 : ViewCia(x, y, w, h)
     Case 4 : ViewTests(x, y, w, h)
     Case 5 : ViewPrograms(x, y, w, h)
+    Case 6 : ViewControls(x, y, w, h)
   EndSelect
 EndProcedure
 
