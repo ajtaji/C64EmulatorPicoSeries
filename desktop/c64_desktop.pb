@@ -23,6 +23,12 @@ XIncludeFile #GL_ENGINE_DIR$ + "GlMath.pbi"
 XIncludeFile #GL_ENGINE_DIR$ + "GlSpriteFunctions.pbi"
 XIncludeFile #GL_ENGINE_DIR$ + "GlUI.pbi"
 XIncludeFile #GL_ENGINE_DIR$ + "GlUIChrome.pbi"
+; this frame is not drawn through DrawRetroCRT: with the CRT on (the engine's default) every pointer
+; position is bent by its barrel curve - up to 28 px at 125%, worst at the top and bottom of the window
+UI_UseCRT = #False
+CompilerIf Defined(PLANT_CRT, #PB_Constant)
+  UI_UseCRT = #True   ; only to see --pointer-test fail
+CompilerEndIf
 
 XIncludeFile "core/machine.pbi"
 XIncludeFile "sound.pbi"
@@ -223,11 +229,17 @@ Procedure ViewRunTests()
 EndProcedure
 
 ; ---------------------------------------------------------------- fonts and size
+; The fonts at their logical size * the display scale (Neon_UIScale), rebuilt when the scale changes.
+Global FontsBuilt.i
 Procedure BuildFonts()
-  *Neon_FontUI = Neon_CreateFontPx("Segoe UI", Round(14 * UiScale, #PB_Round_Nearest))
-  *Neon_FontSmall = Neon_CreateFontPx("Segoe UI", Round(12 * UiScale, #PB_Round_Nearest))
-  *Neon_FontBold = Neon_CreateFontPx("Segoe UI", Round(15 * UiScale, #PB_Round_Nearest), #PB_Font_Bold)
-  *Neon_FontMono = Neon_CreateFontPx("Consolas", Round(13 * UiScale, #PB_Round_Nearest))
+  If FontsBuilt
+    FreeGLFont(*Neon_FontUI) : FreeGLFont(*Neon_FontSmall) : FreeGLFont(*Neon_FontBold) : FreeGLFont(*Neon_FontMono)
+  EndIf
+  FontsBuilt = 1
+  *Neon_FontUI = Neon_CreateFontPx("Segoe UI", Round(Neon_S(14), #PB_Round_Nearest))
+  *Neon_FontSmall = Neon_CreateFontPx("Segoe UI", Round(Neon_S(12), #PB_Round_Nearest))
+  *Neon_FontBold = Neon_CreateFontPx("Segoe UI", Round(Neon_S(15), #PB_Round_Nearest), #PB_Font_Bold)
+  *Neon_FontMono = Neon_CreateFontPx("Consolas", Round(Neon_S(13), #PB_Round_Nearest))
   GLFontSetSnapToPixel(*Neon_FontUI, #True) : GLFontSetSnapToPixel(*Neon_FontSmall, #True)
   GLFontSetSnapToPixel(*Neon_FontBold, #True) : GLFontSetSnapToPixel(*Neon_FontMono, #True)
 EndProcedure
@@ -247,6 +259,12 @@ Procedure MeasureWindow()
   GL_ViewportX = 0 : GL_ViewportY = 0 : GL_ViewportW = PhysW : GL_ViewportH = PhysH
   Util_BaseWidth = PhysW : Util_BaseHeight = PhysH
   Util_WinWidth = WindowWidth(Win, #PB_Window_InnerCoordinate) : Util_WinHeight = WindowHeight(Win, #PB_Window_InnerCoordinate)
+  ; the display scale s = physical / logical client width, MEASURED (the engine's GlUIChrome.pbi section 5a):
+  ; the chrome (Neon_UIScale) and the fonts follow it, and change with it on a monitor with another scale
+  Protected s.f = 1.0
+  If Util_WinWidth > 0 : s = PhysW / Util_WinWidth : EndIf
+  If s <= 0 : s = 1.0 : EndIf
+  If FontsBuilt = 0 Or Abs(s - Neon_UIScale) > 0.005 : Neon_UIScale = s : BuildFonts() : EndIf
 EndProcedure
 
 ; ---------------------------------------------------------------- running
@@ -318,8 +336,112 @@ Procedure SaveWindowShot(file$)
 EndProcedure
 
 ; ---------------------------------------------------------------- one frame of the window
+
+; ---------------------------------------------------------------- --pointer-test
+; The real pointer is shared with everyone on this desktop, so it is never moved: the chrome is driven with
+; synthetic positions in the units WindowMouseX/Y give a DPI-aware window (physical pixels), through the same
+; Neon_ChromeBeginFrame call. For every control four points: just inside its top-left and its bottom-right
+; corner (a press must land on it), just right of it and just below it (a press must not). Every frame
+; Neon_MX / Neon_MY must read the point back unbent. Controls at the top of the window (the toolbar, the tab
+; strip), in the middle (the memory pane's buttons) and at the bottom (the program list's last row).
+Global PtLog$, PtFile$, PtX.f, PtY.f, PtDown.i, PtCase.i, PtPoint.i, PtFrame.i, PtFails.i, PtPoints.i, PtWorst.f, PtDone.i
+Global PtCount.i, Dim PtName$(40)
+
+Procedure PtInit()
+  Protected n$ = "Open|ROMs|Pause|Step|Frame|Reset|Mute|Standard|Joy keys|tab 0|tab 2|tab 5|mem back|mem PC|Run tests|Open file|Swap disk|list first row|list last row"
+  Protected i.i
+  PtCount = CountString(n$, "|") + 1
+  For i = 0 To PtCount - 1 : PtName$(i) = StringField(n$, i + 1, "|") : Next
+  ClearList(ViewFiles())
+  For i = 1 To 400 : AddElement(ViewFiles()) : ViewFiles() = "program " + Str(i) + ".prg" : Next   ; longer than its pane
+  ViewFilesTop = 0
+EndProcedure
+
+; The page a control is drawn on.
+Procedure.i PtPage(name$)
+  If Left(name$, 4) = "mem " : ProcedureReturn 0 : EndIf
+  If name$ = "Run tests" : ProcedureReturn 4 : EndIf
+  If name$ = "Open file" Or name$ = "Swap disk" Or Left(name$, 5) = "list " : ProcedureReturn 5 : EndIf
+  ProcedureReturn 0
+EndProcedure
+
+Procedure.i PtRect(name$, *r.CtlRect)
+  Protected *row.Neon_TabRowLayout, i.i
+  If Left(name$, 4) = "tab "
+    If FindMapElement(Neon_TabLayout(), "1") = 0 : ProcedureReturn 0 : EndIf
+    *row = @Neon_TabLayout() : i = Val(Mid(name$, 5))
+    If i >= *row\Count : ProcedureReturn 0 : EndIf
+    ; the row's last pixel is the strip's underline, not a tab
+    *r\x = *row\X(i) : *r\w = *row\W(i) : *r\y = *row\Y : *r\h = *row\H - 1
+    ProcedureReturn 1
+  EndIf
+  If FindMapElement(Ctl(), name$) = 0 : ProcedureReturn 0 : EndIf
+  CopyStructure(@Ctl(), *r, CtlRect)
+  ProcedureReturn 1
+EndProcedure
+
+; One step, after each frame is drawn.
+Procedure PtStep()
+  Protected r.CtlRect, name$, inside.i, got$, ok.i, f.i
+  If PtCase >= PtCount
+    PtLog$ + "pointer-test: " + Str(PtPoints) + " points on " + Str(PtCount) + " controls, " + Str(PtFails) + " failures, scale " +
+             StrF(Neon_UIScale, 2) + ", canvas " + Str(Util_BaseWidth) + "x" + Str(Util_BaseHeight) + " physical, window " +
+             Str(Util_WinWidth) + "x" + Str(Util_WinHeight) + " logical, UI_UseCRT " + Str(UI_UseCRT) +
+             ", worst pointer read-back error " + StrF(PtWorst, 2) + " px" + #LF$
+    f = CreateFile(#PB_Any, PtFile$)
+    If f : WriteString(f, PtLog$) : CloseFile(f) : EndIf
+    PtDone = 1
+    ProcedureReturn
+  EndIf
+  name$ = PtName$(PtCase)
+  If PtFrame > 1
+    If Abs(Neon_MX - PtX) > PtWorst : PtWorst = Abs(Neon_MX - PtX) : EndIf
+    If Abs(Neon_MY - PtY) > PtWorst : PtWorst = Abs(Neon_MY - PtY) : EndIf
+  EndIf
+  PtFrame + 1
+  Select PtFrame
+    Case 1                                       ; the page that shows the control, the pointer away
+      ActiveTab = PtPage(name$)
+      PtX = 1 : PtY = 1 : PtDown = 0
+    Case 2                                       ; drawn: go to the point
+      If PtRect(name$, @r) = 0
+        PtLog$ + "FAIL " + name$ + ": not drawn" + #LF$ : PtFails + 1
+        PtFrame = 0 : PtPoint = 0 : PtCase + 1 : ProcedureReturn
+      EndIf
+      Select PtPoint
+        Case 0 : PtX = r\x + 2 : PtY = r\y + 2
+        Case 1 : PtX = r\x + r\w - 2 : PtY = r\y + r\h - 2
+        Case 2 : PtX = r\x + r\w + 2 : PtY = r\y + r\h - 2
+        Case 3 : PtX = r\x + r\w - 2 : PtY = r\y + r\h + 2
+      EndSelect
+      PtClicked$ = ""
+      If Left(name$, 4) = "tab " : ActiveTab = 99 : EndIf   ; no tab selected: a press shows as the new value
+    Case 3 : PtDown = 1                          ; press
+    Case 4 : PtDown = 0                          ; release
+    Case 6                                       ; what the press did
+      PtRect(name$, @r)
+      inside = Bool(PtPoint < 2)
+      If Left(name$, 4) = "tab "
+        got$ = "tab " + Str(ActiveTab)
+        ok = Bool((got$ = name$) = inside)
+      Else
+        got$ = PtClicked$
+        If got$ = "" : got$ = "nothing" : EndIf
+        ok = Bool((PtClicked$ = name$) = inside)
+      EndIf
+      PtPoints + 1
+      PtLog$ + StringField("FAIL|ok", 1 + ok, "|") + "  " + LSet(name$, 16) + " rect (" + StrF(r\x, 1) + "," + StrF(r\y, 1) + " " +
+               StrF(r\w, 1) + "x" + StrF(r\h, 1) + ")  point (" + StrF(PtX, 0) + "," + StrF(PtY, 0) + ") " +
+               StringField("outside|inside", 1 + inside, "|") + "  read back (" + StrF(Neon_MX, 1) + "," + StrF(Neon_MY, 1) + ")  press -> " + got$ + #LF$
+      If ok = 0 : PtFails + 1 : EndIf
+      If Left(name$, 4) = "tab " : ActiveTab = 0 : EndIf
+      PtPoint + 1 : PtFrame = 0
+      If PtPoint = 4 : PtPoint = 0 : PtCase + 1 : EndIf
+  EndSelect
+EndProcedure
+
 Procedure Tick()
-  Protected now.q, dt.f, mx.i, my.i, down.b, s.f, toolH.f, x.f, gx.f, gy.f, gw.f, gh.f, scale.f, side.f
+  Protected now.q, dt.f, mx.i, my.i, down.b, toolH.f, x.f, gx.f, gy.f, gw.f, gh.f, scale.f, side.f
   Protected panelX.f, label$, f$
   now = ElapsedMilliseconds() : dt = (now - LastDraw) / 1000.0 : LastDraw = now
   If dt > 0.25 : dt = 0.25 : EndIf
@@ -333,13 +455,14 @@ Procedure Tick()
     FpsSince = now
   EndIf
 
+  ; the pointer as Windows gives a DPI-aware window - physical pixels - passed in AS IT IS (GlUIChrome.pbi 5a)
   mx = WindowMouseX(Win) : my = WindowMouseY(Win)
   CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-    mx = mx * PhysW / Util_WinWidth : my = my * PhysH / Util_WinHeight
     If GetActiveWindow() = Win : down = Bool(GetAsyncKeyState_(#VK_LBUTTON) & $8000) : EndIf
   CompilerElse
     down = Bool(GetGadgetAttribute(Gl, #PB_OpenGL_Buttons) & #PB_OpenGL_LeftButton)
   CompilerEndIf
+  If PtOn : mx = PtX : my = PtY : down = PtDown : EndIf   ; --pointer-test: the synthetic point, the same path
   Neon_ChromeBeginFrame(mx, my, down, Wheel, KeyCode, KeyChar, dt)
   Wheel = 0 : KeyCode = 0 : KeyChar = 0
 
@@ -352,47 +475,51 @@ Procedure Tick()
   glClear_(#GL_COLOR_BUFFER_BIT)
   glEnable_(#GL_BLEND) : glBlendFunc_(#GL_SRC_ALPHA, #GL_ONE_MINUS_SRC_ALPHA)
 
-  s = UiScale : toolH = Round(40 * s, #PB_Round_Nearest)
+  toolH = Round(Neon_S(40), #PB_Round_Nearest)
   Neon_Box(0, 0, PhysW, toolH, Neon_C_HeadR, Neon_C_HeadG, Neon_C_HeadB)
-  x = 8 * s
-  If Neon_Button(x, 6 * s, 96 * s, toolH - 12 * s, "Open...") : ViewOpenDialog() : EndIf : x + 102 * s
-  If Neon_Button(x, 6 * s, 64 * s, toolH - 12 * s, "ROMs...")
+  x = Neon_S(8)
+  If Btn("Open", x, Neon_S(6), Neon_S(96), toolH - Neon_S(12), "Open...") : ViewOpenDialog() : EndIf : x + Neon_S(102)
+  If Btn("ROMs", x, Neon_S(6), Neon_S(64), toolH - Neon_S(12), "ROMs...")
     f$ = PathRequester("Choose the folder with the C64's BASIC, KERNAL and character ROMs", RomDir$)
     If f$ <> ""
       If FindRoms(f$) : MachineStart() : Paused = 0 : Else : StatusLine$ = "No basic / kernal / char ROM files of the right sizes in " + f$ : EndIf
     EndIf
-  EndIf : x + 70 * s
+  EndIf : x + Neon_S(70)
   label$ = "Pause" : If Paused : label$ = "Run" : EndIf
-  If Neon_Button(x, 6 * s, 72 * s, toolH - 12 * s, label$ + "  F5", Bool(Paused = 0)) : Paused = 1 - Paused : EmuLastUs = ElapsedMicroseconds() : EndIf : x + 78 * s
-  If Neon_Button(x, 6 * s, 80 * s, toolH - 12 * s, "Step  F6") : StepInstruction() : EndIf : x + 86 * s
-  If Neon_Button(x, 6 * s, 88 * s, toolH - 12 * s, "Frame  F7") : StepFrame() : EndIf : x + 94 * s
-  If Neon_Button(x, 6 * s, 82 * s, toolH - 12 * s, "Reset  F8") : MachineStart() : EndIf : x + 88 * s
+  If Btn("Pause", x, Neon_S(6), Neon_S(72), toolH - Neon_S(12), label$ + "  F5", Bool(Paused = 0)) : Paused = 1 - Paused : EmuLastUs = ElapsedMicroseconds() : EndIf : x + Neon_S(78)
+  If Btn("Step", x, Neon_S(6), Neon_S(80), toolH - Neon_S(12), "Step  F6") : StepInstruction() : EndIf : x + Neon_S(86)
+  If Btn("Frame", x, Neon_S(6), Neon_S(88), toolH - Neon_S(12), "Frame  F7") : StepFrame() : EndIf : x + Neon_S(94)
+  If Btn("Reset", x, Neon_S(6), Neon_S(82), toolH - Neon_S(12), "Reset  F8") : MachineStart() : EndIf : x + Neon_S(88)
   label$ = "Mute" : If SoundMuted : label$ = "Sound" : EndIf
-  If Neon_Button(x, 6 * s, 64 * s, toolH - 12 * s, label$, SoundMuted) : SoundMuted = 1 - SoundMuted : EndIf : x + 70 * s
+  If Btn("Mute", x, Neon_S(6), Neon_S(64), toolH - Neon_S(12), label$, SoundMuted) : SoundMuted = 1 - SoundMuted : EndIf : x + Neon_S(70)
   label$ = StringField("NTSC|PAL", 1 + WantPal, "|")
-  If Neon_Button(x, 6 * s, 56 * s, toolH - 12 * s, label$) : WantPal = 1 - WantPal : MachineStart() : EndIf : x + 62 * s
+  If Btn("Standard", x, Neon_S(6), Neon_S(56), toolH - Neon_S(12), label$) : WantPal = 1 - WantPal : MachineStart() : EndIf : x + Neon_S(62)
   label$ = "Joy keys " + Str(KbJoyPort) : If KbJoyKeys = 0 : label$ = "Joy keys off" : EndIf
-  If Neon_Button(x, 6 * s, 104 * s, toolH - 12 * s, label$, KbJoyKeys)
+  If Btn("Joy keys", x, Neon_S(6), Neon_S(104), toolH - Neon_S(12), label$, KbJoyKeys)
     If KbJoyKeys = 0 : KbJoyKeys = 1 : KbJoyPort = 2 : ElseIf KbJoyPort = 2 : KbJoyPort = 1 : Else : KbJoyKeys = 0 : EndIf
-  EndIf : x + 110 * s
-  Neon_Text(*Neon_FontMono, x + 8 * s, toolH / 2 - 8 * s, StrD(FpsShown, 1) + " fps  " + StrD(EmuUsShown / 1000.0, 2) + " ms/frame  " + Str(IpsShown / 1000) + "k instr/s   " + StatusLine$, Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
+  EndIf : x + Neon_S(110)
+  Neon_Text(*Neon_FontMono, x + Neon_S(8), toolH / 2 - Neon_S(8), StrD(FpsShown, 1) + " fps  " + StrD(EmuUsShown / 1000.0, 2) + " ms/frame  " + Str(IpsShown / 1000) + "k instr/s   " + StatusLine$, Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
 
-  side = Round(600 * s, #PB_Round_Nearest)
+  side = Round(Neon_S(600), #PB_Round_Nearest)
   If side > PhysW * 0.55 : side = PhysW * 0.55 : EndIf
-  gw = PhysW - side - 24 * s : gh = PhysH - toolH - 24 * s
+  gw = PhysW - side - Neon_S(24) : gh = PhysH - toolH - Neon_S(24)
   scale = gw / 384.0 : If gh / 272.0 < scale : scale = gh / 272.0 : EndIf
   If scale >= 1.0 : scale = Int(scale) : EndIf
-  gx = 12 * s + (gw - 384 * scale) / 2 : gy = toolH + 12 * s + (gh - 272 * scale) / 2
+  gx = Neon_S(12) + (gw - 384 * scale) / 2 : gy = toolH + Neon_S(12) + (gh - 272 * scale) / 2
   ViewDrawScreen(gx, gy, scale)
-  If Stopped : Neon_Text(*Neon_FontBold, gx + 8 * s, gy + 8 * s, "CPU STOPPED: opcode $" + Hex2(BadOpcode) + " at $" + Hex4(PC), Neon_C_RedR, Neon_C_RedG, Neon_C_RedB) : EndIf
+  If Stopped : Neon_Text(*Neon_FontBold, gx + Neon_S(8), gy + Neon_S(8), "CPU STOPPED: opcode $" + Hex2(BadOpcode) + " at $" + Hex4(PC), Neon_C_RedR, Neon_C_RedG, Neon_C_RedB) : EndIf
 
-  panelX = PhysW - side - 6 * s
-  ActiveTab = Neon_TabStrip(1, panelX, toolH + 6 * s, side, 30 * s, "CPU|VIC-II|SID|CIAs|Tests|Programs", ActiveTab)
-  ViewDrawPanel(ActiveTab, panelX, toolH + 40 * s, side, PhysH - toolH - 46 * s)
+  panelX = PhysW - side - Neon_S(6)
+  ActiveTab = Neon_TabStrip(1, panelX, toolH + Neon_S(6), side, Neon_S(30), "CPU|VIC-II|SID|CIAs|Tests|Programs", ActiveTab)
+  ViewDrawPanel(ActiveTab, panelX, toolH + Neon_S(40), side, PhysH - toolH - Neon_S(46))
 
   Neon_ChromeEndFrame()
   If ShotFile$ <> "" And now >= ShotAtMs : SaveWindowShot(ShotFile$) : Quit = 1 : EndIf
   SetGadgetAttribute(Gl, #PB_OpenGL_FlipBuffers, #True)
+  If PtOn
+    PtStep()
+    If PtDone : Quit = 1 : EndIf
+  EndIf
 EndProcedure
 
 ; ---------------------------------------------------------------- main
@@ -416,12 +543,10 @@ EndProcedure
 Procedure Main()
   Protected ev.i, file$, et.i, k.i, roms$
   NoPowerThrottling()
-  UiScale = DesktopResolutionX() : If UiScale < 1 : UiScale = 1 : EndIf
   Gl = OpenGLWindow("PureMetal C64", 1440, 860, #PB_Window_SystemMenu | #PB_Window_ScreenCentered | #PB_Window_SizeGadget | #PB_Window_MinimizeGadget | #PB_Window_MaximizeGadget)
   If Gl = 0 : MessageRequester("PureMetal C64", "OpenGL could not be started.") : End 1 : EndIf
   Win = Util_MainWindowID
-  BuildFonts()
-  MeasureWindow()
+  MeasureWindow()   ; the scale, the fonts, the canvas
   GL_SetVSync(1)
   ViewInit()
   KbInit()
@@ -436,6 +561,7 @@ Procedure Main()
       Case "--pal" : WantPal = 1
       Case "--roms" : k + 1 : roms$ = ProgramParameter(k)
       Case "--tab" : k + 1 : ActiveTab = Val(ProgramParameter(k))
+      Case "--pointer-test" : k + 1 : PtFile$ = ProgramParameter(k) : PtOn = 1
       Case "--shot" : k + 1 : ShotFile$ = ProgramParameter(k) : If ShotAtMs = 0 : ShotAtMs = 5000 : EndIf
       Case "--seconds" : k + 1 : ShotAtMs = Val(ProgramParameter(k)) * 1000
       Default : file$ = ProgramParameter(k)
@@ -445,6 +571,7 @@ Procedure Main()
   FindRoms(roms$)
   ViewFilesRefresh(ViewFolder$)
   If file$ <> "" : OpenProgram(file$) : Else : MachineStart() : EndIf
+  If PtOn : SoundMuted = 1 : PtInit() : EndIf
   FpsSince = ElapsedMilliseconds() : LastDraw = FpsSince
   If ShotFile$ <> "" : ShotAtMs + FpsSince : EndIf
   Repeat
@@ -452,7 +579,7 @@ Procedure Main()
       ev = WindowEvent()
       Select ev
         Case #PB_Event_CloseWindow : Quit = 1
-        Case #PB_Event_SizeWindow, #PB_Event_MaximizeWindow, #PB_Event_RestoreWindow : MeasureWindow()
+        Case #PB_Event_SizeWindow, #PB_Event_MaximizeWindow, #PB_Event_RestoreWindow, #PB_Event_MoveWindow : MeasureWindow()
         Case #PB_Event_Gadget
           If EventGadget() = Gl
             et = EventType()
@@ -476,6 +603,7 @@ Procedure Main()
     Tick()
   Until Quit
   SoundEnd()
+  If PtOn : End PtFails : EndIf   ; --pointer-test: the number of failures
 EndProcedure
 Main()
 

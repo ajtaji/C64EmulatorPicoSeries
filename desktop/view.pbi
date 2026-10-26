@@ -8,7 +8,6 @@ Structure ViewTexture
   *pixels
 EndStructure
 
-Global UiScale.f = 1.0
 Global ViewScreen.ViewTexture
 Global Dim ViewPal.l(32)
 Global Dim DisName.s(256)
@@ -18,6 +17,23 @@ Global ViewMemPage.i = 8, ViewTestResult$, ViewTestFailed.i, ViewTestLog$
 Global ViewFilesTop.i, ViewFolder$, ViewCurrent$
 Global NewList ViewFiles.s()
 Global Dim ScreenFrame.a(384 * 272)
+
+; --pointer-test (c64_desktop.pb): where each control was last drawn, in canvas units (physical pixels),
+; and the control a synthetic press landed on - under the test a press is recorded, never acted on.
+Global PtOn.i, PtClicked$
+Structure CtlRect : x.f : y.f : w.f : h.f : EndStructure
+Global NewMap Ctl.CtlRect()
+Procedure CtlSet(name$, x.f, y.f, w.f, h.f)
+  Ctl(name$)\x = x : Ctl()\y = y : Ctl()\w = w : Ctl()\h = h
+EndProcedure
+Procedure.b Btn(name$, x.f, y.f, w.f, h.f, label.s, lit.b = #False)
+  CtlSet(name$, x, y, w, h)
+  If Neon_Button(x, y, w, h, label, lit)
+    If PtOn : PtClicked$ = name$ : ProcedureReturn #False : EndIf
+    ProcedureReturn #True
+  EndIf
+  ProcedureReturn #False
+EndProcedure
 
 Procedure ViewTextureMake(*t.ViewTexture, w.i, h.i)
   *t\sprite\Width = w : *t\sprite\Height = h
@@ -137,23 +153,23 @@ Procedure.f ViewLine(x.f, y.f, t$, r.f = -1, g.f = 0, b.f = 0)
 EndProcedure
 Procedure.f ViewHead(x.f, y.f, t$)
   Neon_Text(*Neon_FontSmall, x, y, t$, Neon_C_AmbR, Neon_C_AmbG, Neon_C_AmbB)
-  ProcedureReturn y + GLFontLineHeight(*Neon_FontMono) + 2 * UiScale
+  ProcedureReturn y + GLFontLineHeight(*Neon_FontMono) + Neon_S(2)
 EndProcedure
 
 ; ---------------------------------------------------------------- panes
 Procedure ViewCpu(x.f, y.f, w.f, h.f)
-  Protected p.i, i.i, a.i, row$, v.i, s.f = UiScale
+  Protected p.i, i.i, a.i, row$, v.i
   p = CpuStatus()
   For i = 0 To 7
     If p & (128 >> i) : row$ + Mid("NV-BDIZC", i + 1, 1) : Else : row$ + "." : EndIf
   Next
   Neon_Panel(x, y, w, h, "6510 CPU", Neon_C_AccR, Neon_C_AccG, Neon_C_AccB)
-  y + 34 * s : x + 12 * s
+  y + Neon_S(34) : x + Neon_S(12)
   y = ViewLine(x, y, "PC $" + Hex4(PC) + "   A $" + Hex2(A) + "   X $" + Hex2(X) + "   Y $" + Hex2(Y) + "   S $" + Hex2(S) + "   P " + row$)
   y = ViewLine(x, y, "port DDR $" + Hex2(PortDdr) + "  data $" + Hex2(PortData) + "  mode " + Str(C64Mode) + "  EXROM " + Str(CartExrom) + " GAME " + Str(CartGame) + "   IRQ " + Str(C64IrqLine) + "  NMI " + Str(C64NmiLevel))
   y = ViewLine(x, y, "clock " + Str(C64Clock) + "   instructions " + Str(CpuInstructions) + "   frame " + Str(C64Frame), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
   If Stopped : y = ViewLine(x, y, "CPU STOPPED: opcode $" + Hex2(BadOpcode) + " at $" + Hex4(PC), Neon_C_RedR, Neon_C_RedG, Neon_C_RedB) : EndIf
-  y + 6 * s
+  y + Neon_S(6)
   y = ViewHead(x, y, "DISASSEMBLY")
   a = PC
   For i = 0 To 15
@@ -164,14 +180,14 @@ Procedure ViewCpu(x.f, y.f, w.f, h.f)
     EndIf
     a = (a + DisLength(ViewPeekByte(a))) & $FFFF
   Next
-  y + 6 * s
+  y + Neon_S(6)
   Neon_Text(*Neon_FontSmall, x, y, "MEMORY  $" + Hex4(ViewMemPage * 256) + "   (as the CPU sees it; -- = I/O)", Neon_C_AmbR, Neon_C_AmbG, Neon_C_AmbB)
-  If Neon_Button(x + 330 * s, y - 2 * s, 28 * s, 20 * s, "<") : ViewMemPage = (ViewMemPage - 1) & 255 : EndIf
-  If Neon_Button(x + 362 * s, y - 2 * s, 28 * s, 20 * s, ">") : ViewMemPage = (ViewMemPage + 1) & 255 : EndIf
-  If Neon_Button(x + 394 * s, y - 2 * s, 36 * s, 20 * s, "zp") : ViewMemPage = 0 : EndIf
-  If Neon_Button(x + 434 * s, y - 2 * s, 50 * s, 20 * s, "BASIC") : ViewMemPage = 8 : EndIf
-  If Neon_Button(x + 488 * s, y - 2 * s, 36 * s, 20 * s, "PC") : ViewMemPage = PC >> 8 : EndIf
-  y + GLFontLineHeight(*Neon_FontMono) + 4 * s
+  If Btn("mem back", x + Neon_S(330), y - Neon_S(2), Neon_S(28), Neon_S(20), "<") : ViewMemPage = (ViewMemPage - 1) & 255 : EndIf
+  If Btn("mem forward", x + Neon_S(362), y - Neon_S(2), Neon_S(28), Neon_S(20), ">") : ViewMemPage = (ViewMemPage + 1) & 255 : EndIf
+  If Btn("mem zp", x + Neon_S(394), y - Neon_S(2), Neon_S(36), Neon_S(20), "zp") : ViewMemPage = 0 : EndIf
+  If Btn("mem BASIC", x + Neon_S(434), y - Neon_S(2), Neon_S(50), Neon_S(20), "BASIC") : ViewMemPage = 8 : EndIf
+  If Btn("mem PC", x + Neon_S(488), y - Neon_S(2), Neon_S(36), Neon_S(20), "PC") : ViewMemPage = PC >> 8 : EndIf
+  y + GLFontLineHeight(*Neon_FontMono) + Neon_S(4)
   For i = 0 To 15
     a = ViewMemPage * 256 + i * 16
     row$ = Hex4(a) + " "
@@ -184,9 +200,9 @@ Procedure ViewCpu(x.f, y.f, w.f, h.f)
 EndProcedure
 
 Procedure ViewVic(x.f, y.f, w.f, h.f)
-  Protected s.f = UiScale, i.i, row$, mode.i, bank.i
+  Protected i.i, row$, mode.i, bank.i
   Neon_Panel(x, y, w, h, "VIC-II", Neon_C_VioR, Neon_C_VioG, Neon_C_VioB)
-  y + 34 * s : x + 12 * s
+  y + Neon_S(34) : x + Neon_S(12)
   mode = ((VicReg($11) >> 4) & 6) | ((VicReg($16) >> 4) & 1)
   bank = 3 - ((CiaPra(1) | (~CiaDdra(1))) & 3)
   y = ViewLine(x, y, "raster " + Str(VicRaster) + "   compare " + Str(VicCompare) + "   " + StringField("PAL 312 lines|NTSC 263 lines", 2 - C64Pal, "|") + ", " + Str(C64CyclesPerLine) + " cycles")
@@ -194,13 +210,13 @@ Procedure ViewVic(x.f, y.f, w.f, h.f)
   y = ViewLine(x, y, "mode " + StringField("text|multicolour text|bitmap|multicolour bitmap|ECM text|invalid|invalid|invalid", mode + 1, "|") + "   DEN " + Str((VicReg($11) >> 4) & 1) + "  RSEL " + Str((VicReg($11) >> 3) & 1) + "  CSEL " + Str((VicReg($16) >> 3) & 1) + "  scroll " + Str(VicReg($16) & 7) + "," + Str(VicReg($11) & 7))
   y = ViewLine(x, y, "bank " + Str(bank) + " ($" + Hex4(bank * $4000) + ")   screen $" + Hex4(bank * $4000 + ((VicReg($18) & $F0) << 6)) + "   chars $" + Hex4(bank * $4000 + ((VicReg($18) & $0E) << 10)) + "   bitmap $" + Hex4(bank * $4000 + ((VicReg($18) & 8) << 10)))
   y = ViewLine(x, y, "border " + Str(VicReg($20) & 15) + "   background " + Str(VicReg($21) & 15) + " " + Str(VicReg($22) & 15) + " " + Str(VicReg($23) & 15) + " " + Str(VicReg($24) & 15) + "   lines drawn " + Str(VicLinesDrawn))
-  y + 6 * s
+  y + Neon_S(6)
   y = ViewHead(x, y, "SPRITES   #  X    Y    colour  on  DMA show  XE YE MC behind")
   For i = 0 To 7
     y = ViewLine(x, y, "          " + Str(i) + "  " + RSet(Str(VicReg(i * 2) | (((VicReg($10) >> i) & 1) << 8)), 3) + "  " + RSet(Str(VicReg(i * 2 + 1)), 3) + "  " + RSet(Str(VicReg($27 + i) & 15), 6) + "   " + Str((VicReg($15) >> i) & 1) + "   " + Str(SprDma(i)) + "   " + Str(SprDisp(i)) + "     " + Str((VicReg($1D) >> i) & 1) + "  " + Str((VicReg($17) >> i) & 1) + "  " + Str((VicReg($1C) >> i) & 1) + "  " + Str((VicReg($1B) >> i) & 1))
   Next
   y = ViewLine(x, y, "collisions: sprite-sprite $" + Hex2(VicSprSpr) + "   sprite-background $" + Hex2(VicSprBg))
-  y + 6 * s
+  y + Neon_S(6)
   y = ViewHead(x, y, "REGISTERS $D000-$D02E")
   For i = 0 To 2
     row$ = "$D0" + Hex2(i * 16) + " "
@@ -213,9 +229,9 @@ Procedure ViewVic(x.f, y.f, w.f, h.f)
 EndProcedure
 
 Procedure ViewSid(x.f, y.f, w.f, h.f)
-  Protected s.f = UiScale, v.i, b.i, ctl.i, wave$, ph.f, mid.f, i.i, smp.i, n.i, fr.i
+  Protected v.i, b.i, ctl.i, wave$, ph.f, mid.f, i.i, smp.i, n.i, fr.i
   Neon_Panel(x, y, w, h, "SID", Neon_C_AmbR, Neon_C_AmbG, Neon_C_AmbB)
-  y + 34 * s : x + 12 * s
+  y + Neon_S(34) : x + Neon_S(12)
   For v = 0 To 2
     b = v * 7 : ctl = SidReg(b + 4) : wave$ = ""
     If ctl & $10 : wave$ + "tri " : EndIf
@@ -229,24 +245,24 @@ Procedure ViewSid(x.f, y.f, w.f, h.f)
     y = ViewLine(x, y, "voice " + Str(v + 1) + "  freq $" + Hex4(fr) + " (" + StrF(fr * C64Hz / 16777216.0, 1) + " Hz)  pw $" + Hex4(SidReg(b + 2) | ((SidReg(b + 3) & 15) << 8)) + "  gate " + Str(ctl & 1) + "  " + wave$)
     y = ViewLine(x, y, "         ADSR " + Hex2(SidReg(b + 5)) + " " + Hex2(SidReg(b + 6)) + "   envelope " + RSet(Str(SidEnv(v)), 3) + "  " + StringField("attack|decay/sustain|release", SidEnvState(v) + 1, "|"))
   Next
-  y + 4 * s
+  y + Neon_S(4)
   y = ViewLine(x, y, "filter cutoff " + Str(((SidReg($16) << 3) | (SidReg($15) & 7)) & $7FF) + "  resonance " + Str(SidReg($17) >> 4) + "  routed " + Str(SidReg($17) & 7) + "  mode " + Str((SidReg($18) >> 4) & 7) + "   volume " + Str(SidReg($18) & 15) + "   3OFF " + Str(SidReg($18) >> 7))
   y = ViewLine(x, y, "samples " + Str(SidSamples) + "   sound card: " + StringField("off|on", 1 + SoundOn, "|") + "  queued " + Str(SoundQueued) + "  underruns " + Str(SoundUnderruns) + "  muted " + Str(SoundMuted), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
-  y + 6 * s
+  y + Neon_S(6)
   y = ViewHead(x, y, "OUTPUT (last 1024 samples, 48 kHz)")
-  ph = 180 * s : mid = y + ph / 2 : n = 1024
-  Neon_Box(x, y, w - 24 * s, ph, 0.08, 0.09, 0.10)
-  Neon_Box(x, mid, w - 24 * s, 1, Neon_C_LineR, Neon_C_LineG, Neon_C_LineB)
+  ph = Neon_S(180) : mid = y + ph / 2 : n = 1024
+  Neon_Box(x, y, w - Neon_S(24), ph, 0.08, 0.09, 0.10)
+  Neon_Box(x, mid, w - Neon_S(24), 1, Neon_C_LineR, Neon_C_LineG, Neon_C_LineB)
   For i = 0 To n - 1 Step 2
     smp = SidPcm((SidSamples - n + i) & (#SID_RING - 1))
-    Neon_Box(x + i * (w - 24 * s) / n, mid - smp * (ph / 2) / 32768.0, 2 * s, 2 * s, Neon_C_AccR, Neon_C_AccG, Neon_C_AccB)
+    Neon_Box(x + i * (w - Neon_S(24)) / n, mid - smp * (ph / 2) / 32768.0, Neon_S(2), Neon_S(2), Neon_C_AccR, Neon_C_AccG, Neon_C_AccB)
   Next
 EndProcedure
 
 Procedure ViewCia(x.f, y.f, w.f, h.f)
-  Protected s.f = UiScale, u.i, b.i, col.i, row$
+  Protected u.i, b.i, col.i, row$
   Neon_Panel(x, y, w, h, "CIAs", Neon_C_GrnR, Neon_C_GrnG, Neon_C_GrnB)
-  y + 34 * s : x + 12 * s
+  y + Neon_S(34) : x + Neon_S(12)
   For u = 0 To 1
     b = u * 4
     y = ViewHead(x, y, "CIA " + Str(u + 1) + " ($D" + StringField("C|D", u + 1, "|") + "00)" + StringField("   keyboard, joysticks, IRQ|   VIC bank, serial bus, NMI", u + 1, "|"))
@@ -254,7 +270,7 @@ Procedure ViewCia(x.f, y.f, w.f, h.f)
     y = ViewLine(x, y, "timer B " + RSet(Str(TmCount(u * 2 + 1)), 5) + " latch " + RSet(Str(TmLatch(u * 2 + 1)), 5) + "  CRB $" + Hex2(CiaCrb(u)) + StringField("  stopped|  running", 1 + (CiaCrb(u) & 1), "|") + "  counts " + StringField("cycles|CNT|timer A|timer A + CNT", 1 + ((CiaCrb(u) >> 5) & 3), "|"))
     y = ViewLine(x, y, "ICR $" + Hex2(CiaIcr(u)) + "  mask $" + Hex2(CiaMask(u)) + "   PRA $" + Hex2(CiaPra(u)) + " DDRA $" + Hex2(CiaDdra(u)) + "   PRB $" + Hex2(CiaPrb(u)) + " DDRB $" + Hex2(CiaDdrb(u)))
     y = ViewLine(x, y, "TOD " + Hex2(CiaTod(b + 3) & $1F) + ":" + Hex2(CiaTod(b + 2)) + ":" + Hex2(CiaTod(b + 1)) + "." + Str(CiaTod(b)) + StringField(" am| pm", 1 + (CiaTod(b + 3) >> 7), "|") + "   alarm " + Hex2(CiaAlarm(b + 3)) + ":" + Hex2(CiaAlarm(b + 2)) + ":" + Hex2(CiaAlarm(b + 1)) + "." + Str(CiaAlarm(b)))
-    y + 8 * s
+    y + Neon_S(8)
   Next
   y = ViewHead(x, y, "KEYBOARD MATRIX (column: rows pressed)   joystick 1 $" + Hex2(Joy1) + "  joystick 2 $" + Hex2(Joy2))
   row$ = ""
@@ -265,12 +281,12 @@ EndProcedure
 
 Declare ViewRunTests()
 Procedure ViewTests(x.f, y.f, w.f, h.f)
-  Protected s.f = UiScale, i.i, n.i, line$
+  Protected i.i, n.i, line$
   Neon_Panel(x, y, w, h, "Tests", Neon_C_RedR, Neon_C_RedG, Neon_C_RedB)
-  y + 34 * s : x + 12 * s
+  y + Neon_S(34) : x + Neon_S(12)
   y = ViewLine(x, y, "Wolfgang Lorenz's test suite 2.15 on this machine (stand-in ROMs, as c64_check --bench)")
-  If Neon_Button(x, y, 220 * s, 24 * s, "Run the CPU tests (238)") : ViewRunTests() : EndIf
-  y + 32 * s
+  If Btn("Run tests", x, y, Neon_S(220), Neon_S(24), "Run the CPU tests (238)") : ViewRunTests() : EndIf
+  y + Neon_S(32)
   If ViewTestResult$ <> ""
     If ViewTestFailed
       y = ViewLine(x, y, ViewTestResult$, Neon_C_RedR, Neon_C_RedG, Neon_C_RedB)
@@ -280,7 +296,7 @@ Procedure ViewTests(x.f, y.f, w.f, h.f)
     n = CountString(ViewTestLog$, #LF$)
     For i = 1 To n
       line$ = StringField(ViewTestLog$, i, #LF$)
-      If y > h - 20 * s : Break : EndIf
+      If y > h - Neon_S(20) : Break : EndIf
       y = ViewLine(x, y, line$, Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
     Next
   EndIf
@@ -313,25 +329,35 @@ Procedure ViewOpenDialog()
   If f$ <> "" : OpenProgram(f$) : EndIf
 EndProcedure
 Procedure ViewPrograms(x.f, y.f, w.f, h.f)
-  Protected s.f = UiScale, f$, sel.i
+  Protected f$, sel.i, idx.i, rowY.f, last.i
   Neon_Panel(x, y, w, h, "Programs and disks", Neon_C_AccR, Neon_C_AccG, Neon_C_AccB)
-  y + 32 * s : x + 10 * s
-  If Neon_Button(x, y, 110 * s, 24 * s, "Open file...") : ViewOpenDialog() : EndIf
-  If Neon_Button(x + 118 * s, y, 120 * s, 24 * s, "Choose folder...")
+  y + Neon_S(32) : x + Neon_S(10)
+  If Btn("Open file", x, y, Neon_S(110), Neon_S(24), "Open file...") : ViewOpenDialog() : EndIf
+  If Btn("Choose folder", x + Neon_S(118), y, Neon_S(120), Neon_S(24), "Choose folder...")
     f$ = PathRequester("Choose a folder of .PRG and .D64 files", ViewFolder$)
     If f$ <> "" : ViewFilesRefresh(f$) : EndIf
   EndIf
-  If Neon_Button(x + 246 * s, y, 150 * s, 24 * s, "Swap disk (no reset)...")
+  If Btn("Swap disk", x + Neon_S(246), y, Neon_S(150), Neon_S(24), "Swap disk (no reset)...")
     f$ = OpenFileRequester("Put a disk in drive 8", ViewFolder$, "C64 disks (*.d64)|*.d64|All files|*.*", 0)
     If f$ <> "" : InsertDisk(f$) : EndIf
   EndIf
-  Neon_Text(*Neon_FontSmall, x + 404 * s, y + 4 * s, Neon_FitText(*Neon_FontSmall, ViewFolder$, w - 424 * s), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
-  y + 32 * s
-  Neon_ListBegin(7, x, y, w - 20 * s, h - 76 * s, 22 * s, @ViewFilesTop)
+  Neon_Text(*Neon_FontSmall, x + Neon_S(404), y + Neon_S(4), Neon_FitText(*Neon_FontSmall, ViewFolder$, w - Neon_S(424)), Neon_C_DimR, Neon_C_DimG, Neon_C_DimB)
+  y + Neon_S(32)
+  Neon_ListBegin(7, x, y, w - Neon_S(20), h - Neon_S(76), Neon_S(22), @ViewFilesTop)
+  last = Neon_ListTop + Int(Neon_ListH / Neon_ListRowH) - 1
   ForEach ViewFiles()
+    idx = Neon_ListRow : rowY = Neon_ListY + (idx - Neon_ListTop) * Neon_ListRowH
+    If idx = Neon_ListTop : CtlSet("list first row", Neon_ListX, rowY, Neon_ListW - Neon_S(10), Neon_ListRowH) : EndIf
+    If idx = last : CtlSet("list last row", Neon_ListX, rowY, Neon_ListW - Neon_S(10), Neon_ListRowH) : EndIf
     sel = Bool(ViewFolder$ + ViewFiles() = ViewCurrent$)
     If Neon_ListItem(ViewFiles(), 0, sel)
-      OpenProgram(ViewFolder$ + ViewFiles())
+      If PtOn
+        PtClicked$ = "list row " + Str(idx)
+        If idx = Neon_ListTop : PtClicked$ = "list first row" : EndIf
+        If idx = last : PtClicked$ = "list last row" : EndIf
+      Else
+        OpenProgram(ViewFolder$ + ViewFiles())
+      EndIf
     EndIf
   Next
   Neon_ListEnd()

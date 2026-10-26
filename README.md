@@ -208,6 +208,12 @@ C64; the toolbar's NTSC / PAL button or `--pal` switches.
 Panes: CPU (registers, disassembly, memory), VIC-II, SID (voices and the output), CIAs (timers, TOD,
 keyboard matrix), Tests (Lorenz's CPU tests on the running machine, if you have them), Programs.
 
+`PureMetalC64.exe --pointer-test <log>` checks that the pointer and the controls agree at the display's
+scale without touching the real pointer: it drives the window with synthetic positions - four points on
+each of 19 controls, from the toolbar at the top to the program list's last row at the bottom - writes
+each result to `<log>` and exits with the number of failures (at 125%: 76 of 76, read back within
+0.5 px).
+
 `desktop\c64_check.exe` (from `desktop\c64_check.pb`, `/CONSOLE`) is the console check:
 `--bench [test]`, `--demo [--prg f]`, `--boot <romdir> [--prg f] [--d64 f] [--type text] [--frames n]
 [--shot f.bmp] [--wav f.wav] [--joy frame:mask] [--ntsc]`. It runs PAL unless `--ntsc`: its reference
