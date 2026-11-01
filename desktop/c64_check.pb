@@ -5,9 +5,15 @@
 ;   c64_check.exe --boot <romdir> [--frames N] [--prg file] [--d64 file] [--type "text"] [--shot out.bmp]
 ;                                         boot BASIC with real ROMs, optionally load and type
 EnableExplicit
+; the clock is the Neon Arcade Display Engine's (GL_Micros), found as c64_desktop.pb finds it
+CompilerIf Not Defined(GL_ENGINE_DIR$, #PB_Constant)
+  #GL_ENGINE_DIR$ = #PB_Compiler_FilePath + "../../Neon-Arcade-Dispay-Engine/"
+CompilerEndIf
+XIncludeFile #GL_ENGINE_DIR$ + "GlTypes.pbi"
+XIncludeFile #GL_ENGINE_DIR$ + "GlUtilities.pbi"
 XIncludeFile "core/machine.pbi"
 
-Global TestDir$ = GetPathPart(ProgramFilename()) + "..\tests\lorenz\"
+Global TestDir$ = GetPathPart(ProgramFilename()) + ".." + #PS$ + "tests" + #PS$ + "lorenz" + #PS$
 Global *BenchRec, BenchOut$, BenchLine$
 Global Dim Frame.a(384 * 272)
 Global FramesDone.i
@@ -27,12 +33,10 @@ Procedure PlatformFence()
 EndProcedure
 Procedure PlatformTick()
 EndProcedure
-Global HostFreq.q, HostStart.q
+Global HostStart.q
 Procedure.i PlatformUs()
-  Protected now.q
-  If HostFreq = 0 : QueryPerformanceFrequency_(@HostFreq) : QueryPerformanceCounter_(@HostStart) : EndIf
-  QueryPerformanceCounter_(@now)
-  ProcedureReturn ((now - HostStart) * 1000000) / HostFreq
+  If HostStart = 0 : HostStart = GL_Micros() : EndIf
+  ProcedureReturn GL_Micros() - HostStart
 EndProcedure
 Procedure PlatformFrameDone()
   FramesDone + 1
@@ -153,7 +157,7 @@ Next
 If mode$ = "bench"
   If romdir$
     Define bd.i, bn$, bsz.i
-    If Right(romdir$, 1) <> "\" : romdir$ + "\" : EndIf
+    If Right(romdir$, 1) <> "\" And Right(romdir$, 1) <> "/" : romdir$ + #PS$ : EndIf
     bd = ExamineDirectory(#PB_Any, romdir$, "*.*")
     While bd And NextDirectoryEntry(bd)
       bn$ = LCase(DirectoryEntryName(bd)) : bsz = DirectoryEntrySize(bd)
@@ -183,7 +187,7 @@ EndIf
 
 If mode$ = "demo"
   PerfOn = 1
-  If prg$ = "" : prg$ = GetPathPart(ProgramFilename()) + "..\tests\demo.prg" : EndIf
+  If prg$ = "" : prg$ = GetPathPart(ProgramFilename()) + ".." + #PS$ + "tests" + #PS$ + "demo.prg" : EndIf
   *prg = LoadFile(prg$, @size)
   BenchRoms() : BenchMode = 0
   C64PowerOn()
@@ -219,7 +223,7 @@ EndIf
 If mode$ = "boot"
   PerfOn = 1
   Define dd.i, n$, sz.i
-  If Right(romdir$, 1) <> "\" : romdir$ + "\" : EndIf
+  If Right(romdir$, 1) <> "\" And Right(romdir$, 1) <> "/" : romdir$ + #PS$ : EndIf
   dd = ExamineDirectory(#PB_Any, romdir$, "*.*")
   If dd
     While NextDirectoryEntry(dd)

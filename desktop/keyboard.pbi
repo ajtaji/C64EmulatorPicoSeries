@@ -1,62 +1,66 @@
 ; The PC keyboard as the C64's 8 x 8 matrix, the joystick on the PC's keys, and RESTORE - all from the
-; one table in controls.pbi (which the Controls tab and the README show too).
+; one table in controls.pbi (which the Controls tab and the README show too). Keys are the engine's
+; codes (#PB_Shortcut_ / #GL_Key_: virtual keys on Windows, X keysyms on Linux), read through it.
 EnableExplicit
 XIncludeFile "controls.pbi"
-Global Dim KbMap.i(256)          ; PC key -> C64 key (col * 8 + row), -1 none; +64 = with SHIFT
+Structure KbKey
+  vk.i
+  k.i                            ; C64 key (col * 8 + row), +64 = with SHIFT
+  joy.i                          ; the joystick key with this code (with the joystick keys on it wins), 0 none
+EndStructure
+Global NewList KbKeys.KbKey()
+Global NewList KbJoy.KbKey()     ; the joystick keys: vk and the joystick bit (in joy)
 Global KbJoyKeys.i = 1, KbJoyPort.i = 2
 Global KbRestoreHeld.i
-Global Dim KbJoyBit.i(256)       ; PC key -> joystick bit (with the joystick keys on), 0 none
 Global KbRestoreVk.i = #PB_Shortcut_PageUp
 Global KbNoEsc.i                 ; 1 in full screen: Esc leaves it, the C64 does not see it
-
-Procedure KbSet(pc.i, col.i, row.i, shift.i = 0)
-  KbMap(pc) = col * 8 + row + shift * 64
-EndProcedure
+Global KbTestKey.i = -1          ; --fullscreen-test: the one key held (no real keyboard read), -1 off
 
 Procedure KbInit()
-  Protected i.i
   ControlsInit()
-  For i = 0 To 255 : KbMap(i) = -1 : KbJoyBit(i) = 0 : Next
+  ClearList(KbKeys()) : ClearList(KbJoy())
   ForEach Controls()
     Select Controls()\kind
-      Case #CTL_KEY : KbSet(Controls()\vk, Controls()\col, Controls()\row, Controls()\shift)
-      Case #CTL_JOY : KbJoyBit(Controls()\vk & 255) = Controls()\col
+      Case #CTL_JOY : AddElement(KbJoy()) : KbJoy()\vk = Controls()\vk : KbJoy()\joy = Controls()\col
       Case #CTL_RESTORE : KbRestoreVk = Controls()\vk
     EndSelect
   Next
+  ForEach Controls()
+    If Controls()\kind = #CTL_KEY
+      AddElement(KbKeys()) : KbKeys()\vk = Controls()\vk : KbKeys()\k = Controls()\col * 8 + Controls()\row + Controls()\shift * 64
+      ForEach KbJoy()
+        If KbJoy()\vk = KbKeys()\vk : KbKeys()\joy = KbJoy()\joy : EndIf
+      Next
+    EndIf
+  Next
 EndProcedure
 
-; The whole keyboard read once a frame (GetKeyboardState: the state this thread's message queue has
-; reached, which the main loop drains every pass). GetAsyncKeyState a key at a time cost ~200 us a
-; call on this PC - 14 ms a frame for the ~70 keys, the emulator then at 9-16 frames/s.
-Global Dim KbState.a(255)
+; The whole keyboard read once a frame (the engine's GL_KeysSnapshot), then each key from that read.
 Procedure.i KbDown(vk.i)
-  ProcedureReturn Bool(KbState(vk & 255) & $80)
+  If KbTestKey >= 0 : ProcedureReturn Bool(vk = KbTestKey) : EndIf
+  ProcedureReturn GL_KeySnap(vk)
 EndProcedure
 
 ; The matrix and the joystick from the keys held now (only while the window has focus).
 ; Returns the joystick bits (up 1, down 2, left 4, right 8, fire 16).
 Procedure.i KbApply(active.i)
-  Protected vk.i, k.i, col.i, row.i, shift.i, joy.i
+  Protected k.i, col.i, row.i, shift.i, joy.i
   For col = 0 To 7 : KeyRows(col) = 0 : Next
   If active = 0 : KbRestoreHeld = 0 : ProcedureReturn 0 : EndIf
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-    GetKeyboardState_(@KbState(0))
-  CompilerEndIf
-  For vk = 8 To 254
-    ; a joystick key (with the joystick keys on) is the joystick's, not the keyboard's
-    If KbJoyKeys And KbJoyBit(vk)
-      If KbDown(vk) : joy | KbJoyBit(vk) : EndIf
-      Continue
-    EndIf
-    k = KbMap(vk)
-    If k >= 0 And vk <> #VK_SHIFT And vk <> #VK_CONTROL
-      If KbNoEsc And vk = #VK_ESCAPE : Continue : EndIf
-      If KbDown(vk)
-        col = (k >> 3) & 7 : row = k & 7
-        KeyRows(col) | (1 << row)
-        If k & 64 : shift = 1 : EndIf
-      EndIf
+  If KbTestKey < 0 : GL_KeysSnapshot() : EndIf
+  ; a joystick key (with the joystick keys on) is the joystick's, not the keyboard's
+  If KbJoyKeys
+    ForEach KbJoy()
+      If KbDown(KbJoy()\vk) : joy | KbJoy()\joy : EndIf
+    Next
+  EndIf
+  ForEach KbKeys()
+    If KbJoyKeys And KbKeys()\joy : Continue : EndIf
+    If KbNoEsc And KbKeys()\vk = #PB_Shortcut_Escape : Continue : EndIf
+    If KbDown(KbKeys()\vk)
+      k = KbKeys()\k : col = (k >> 3) & 7 : row = k & 7
+      KeyRows(col) | (1 << row)
+      If k & 64 : shift = 1 : EndIf
     EndIf
   Next
   If shift : KeyRows(1) | (1 << 7) : EndIf

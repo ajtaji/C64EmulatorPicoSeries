@@ -11,7 +11,7 @@ CompilerElse
   XIncludeFile "core/cpu6510.pbi"
 CompilerEndIf
 
-Global TestDir$ = GetPathPart(ProgramFilename()) + "..\tests\lorenz\"
+Global TestDir$ = GetPathPart(ProgramFilename()) + ".." + #PS$ + "tests" + #PS$ + "lorenz" + #PS$
 Global Prints.i, Line$, Failures.i, Tests.i, Finished.i, One.i, Current$
 Global Dim FlatPages.i(0)
 

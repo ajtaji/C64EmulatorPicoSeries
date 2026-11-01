@@ -3,7 +3,7 @@
 A Commodore 64 emulator for the Raspberry Pi Pico W and Pico 2 W, written in PureMetal and compiled
 with PureMetal Forge to bare-metal machine code: no SDK, no RTOS. The picture goes to a LAFVIN ST7796
 panel, the SID to a Bluetooth speaker (optional), and the kit's stick and buttons are the joystick.
-The same machine source also builds a Windows program, drawn with the Neon Arcade Display Engine, with
+The same machine source also builds a desktop program for Windows and Linux, drawn with the Neon Arcade Display Engine, with
 the PC keyboard as the C64's, sound through the PC and debug panes for the CPU, VIC-II, SID and CIAs.
 
 It starts as the **NTSC C64** (the US machine: 60 frames a second); PAL is one command away.
@@ -176,24 +176,38 @@ reproduce byte for byte:
 
 ### Building the desktop version
 
-You need PureBasic 6.41 for Windows x64 (the C back end) and the
-[Neon Arcade Display Engine](https://github.com/ajtaji/Neon-Arcade-Dispay-Engine), cloned beside this
-repository - the program finds it at `../Neon-Arcade-Dispay-Engine/` next to its own folder:
+One source builds on Windows and on Linux: everything the program needs from the system (the window,
+drawing, keys, sound, full screen, gamepads, the clock) comes through the engine, so there is no
+per-system code in it. You need PureBasic 6.41 x64 (its C back end, `pbcompilerc`) for Windows or Linux
+and the [Neon Arcade Display Engine](https://github.com/ajtaji/Neon-Arcade-Dispay-Engine), cloned beside
+this repository - the program finds it at `../Neon-Arcade-Dispay-Engine/` next to its own folder:
 
 ```
 git clone https://github.com/ajtaji/C64EmulatorPicoSeries.git
 git clone https://github.com/ajtaji/Neon-Arcade-Dispay-Engine.git
 ```
 
-Then, from PowerShell in the folder that holds both:
+Then, on Windows, from PowerShell in the folder that holds both (`<PureBasic>` is where PureBasic is
+installed):
 
 ```
-& "C:\Program Files\PureBasic\Compilers\pbcompilerc.exe" C64EmulatorPicoSeries\desktop\c64_desktop.pb /EXE C64EmulatorPicoSeries\desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
+& "<PureBasic>\Compilers\pbcompilerc.exe" C64EmulatorPicoSeries\desktop\c64_desktop.pb /EXE C64EmulatorPicoSeries\desktop\PureMetalC64.exe /THREAD /DPIAWARE /OPTIMIZER
 C64EmulatorPicoSeries\desktop\PureMetalC64.exe [program.prg | disk.d64] [--roms <folder>] [--pal] [--mute]
 ```
 
-With the engine somewhere else, add `/CONSTANT GL_ENGINE_DIR$=<path to the engine>/` (the trailing slash
-matters). The console check builds the same way: `desktop\c64_check.pb` with `/CONSOLE` (it needs no engine).
+On Linux (x64, X11 or Wayland with XWayland; GTK 3, OpenGL, ALSA), from a shell in the folder that holds
+both, with `PUREBASIC_HOME` set to the PureBasic folder:
+
+```
+$PUREBASIC_HOME/compilers/pbcompilerc C64EmulatorPicoSeries/desktop/c64_desktop.pb -t -z -o C64EmulatorPicoSeries/desktop/PureMetalC64
+C64EmulatorPicoSeries/desktop/PureMetalC64 [program.prg | disk.d64] [--roms <folder>] [--pal] [--mute]
+```
+
+With the engine somewhere else, add `/CONSTANT GL_ENGINE_DIR$=<path to the engine>/` (Linux:
+`-co 'GL_ENGINE_DIR$=<path to the engine>/'`; the trailing slash matters). The console checks build the
+same way: `desktop/c64_check.pb` (it uses the engine's clock) and `desktop/lorenz_check.pb`, with
+`/CONSOLE /THREAD /OPTIMIZER` on Windows, `-t -z -cl` on Linux. Keep the Linux build on a Linux disk:
+built from a Windows drive mounted under WSL (`/mnt/c`), the compiler includes a file twice.
 
 Choose the ROM folder once with the toolbar's **ROMs...** (it is remembered). It starts as the NTSC
 C64; the toolbar's NTSC / PAL button or `--pal` switches.
@@ -273,19 +287,20 @@ End there (End is RUN/STOP in the window too). F11 is free: the C64's function k
 Panes: CPU (registers, disassembly, memory), VIC-II, SID (voices and the output), CIAs (timers, TOD,
 keyboard matrix), Tests (Lorenz's CPU tests on the running machine, if you have them), Programs, Controls.
 
-`PureMetalC64.exe --pointer-test <log>` checks that the pointer and the controls agree at the display's
+`PureMetalC64 --pointer-test <log>` checks that the pointer and the controls agree at the display's
 scale without touching the real pointer: it drives the window with synthetic positions - four points on
 each of 21 controls, from the toolbar at the top to the program list's last row at the bottom - writes
 each result to `<log>` and exits with the number of failures (at 125%: 84 of 84, read back within
 0.5 px).
 
-`PureMetalC64.exe --fullscreen-test <log> [<shot.bmp>]` checks full screen with posted F11 / Esc key
-messages and no real input: Esc is RUN/STOP in the window, F11 covers the window's monitor with the
-picture at the standard's shape, as large as fits and centred, the machine runs at its frame rate, Esc
-and End do what the table says, Esc leaves and the window's rectangle and style come back exactly - in
-NTSC, then PAL. It exits with the number of failures (30 of 30 on a 1920 x 1080 monitor at 125%).
+`PureMetalC64 --fullscreen-test <log> [<shot.png>]` checks full screen with F11 / Esc given to the
+window's key handler and no real input: Esc is RUN/STOP in the window, F11 covers the window's monitor
+with the picture at the standard's shape, as large as fits and centred, the machine runs at its frame
+rate, Esc and End do what the table says, Esc leaves and the window's rectangle and client size come back
+exactly - in NTSC, then PAL. It exits with the number of failures (30 of 30 on a 1920 x 1080 monitor at
+125%; 30 of 30 on Windows at 150% and on Linux under WSLg).
 
-`desktop\c64_check.exe` (from `desktop\c64_check.pb`, `/CONSOLE`) is the console check:
+`desktop/c64_check` (from `desktop/c64_check.pb`) is the console check:
 `--bench [test]`, `--demo [--prg f]`, `--boot <romdir> [--prg f] [--d64 f] [--type text] [--frames n]
 [--shot f.bmp] [--wav f.wav] [--joy frame:mask] [--ntsc]`. It runs PAL unless `--ntsc`: its reference
 pictures are PAL.
@@ -328,7 +343,7 @@ well as here (`demo/README.md`).
 ```
 src/        the machine (src/*.pmi, shared by both chips and the desktop) and the Pico side
             (panel, audio, controls, flash store, the per-chip 6510 and converter)
-desktop/    the Windows program, its console check and the generated machine copy (desktop/core)
+desktop/    the desktop program (Windows and Linux), its console checks and the generated machine copy (desktop/core)
 firmware/   ROM-free firmware images
 demo/       the demo written in PureMetal
 tests/      the project's own test programs (demo, VIC-II modes, self-test, raster split) and the
