@@ -49,8 +49,6 @@ for y in range(21):
 bars = [0, 6, 14, 3, 1, 3, 14, 6, 0, 2, 10, 7, 1, 7, 10, 2]
 title = scr('    PUREMETAL FORGE  -  COMMODORE 64    ')
 sub = scr('  WRITTEN IN PUREMETAL, BUILT BY PMFORGE ')
-msg = scr('HELLO FROM PUREMETAL!  THREE SID VOICES, RASTER BARS, A BOUNCING SPRITE AND '
-          'THIS SMOOTH SCROLLER - ALL WRITTEN IN PUREMETAL AND COMPILED FOR THE C64 ...     ')
 grad = [11, 12, 15, 1, 1, 15, 12, 11]
 
 src = open(os.path.join(ROOT, 'tools', 'pm_demo_body.c64')).read()
@@ -61,7 +59,6 @@ data += rows('arp0', arp0) + rows('arp1', arp1) + rows('arp2', arp2)
 data += rows('bars', bars) + rows('grad', grad)
 data += rows('ball', ball, per=21)
 data += rows('title', title, per=20) + rows('sub', sub, per=20)
-data += rows('msg', msg + [255], per=20)
 data += 'EndDataSection\n'
 open(os.path.join(ROOT, 'demo', 'c64demo.c64'), 'w', newline='\n').write(src + data)
-print('demo/c64demo.c64', len(msg), 'scroller characters')
+print('demo/c64demo.c64')

@@ -7,11 +7,14 @@
 ;   - three SID voices: a pulse bass line, a triangle lead and a sawtooth arpeggio (the chord
 ;     played one note a frame), 4 bars of Am F C G
 ;
-; The tables (screen codes, frequencies, the song, the sprite) are written by tools/make_pm_demo.py.
+; The tables (screen codes, frequencies, the song, the sprite) are written by tools/make_pm_demo.py;
+; the scroller's message is a string, below, turned into screen codes once at the start.
 
 Global frame.a, st.a, phase.a, scroll.a
 Global stepT.a, stepN.a, arpN.a
 Global msgPos.w
+Global msg.s{160}, one.s{2}
+Global Dim msgScr.a[161]
 
 #BAR_TOP = 98
 #SCROLL_ROW = 24
@@ -77,6 +80,24 @@ ProcedureInterrupt IRQ()
   EndIf
 EndProcedure
 
+; The message as screen codes in msgScr, ended by 255: each character read with Mid / Asc. Screen codes are
+; PETSCII's upper case: @ A..Z [ \ ] ^ _ (64-95) are 0-31, space to ? (32-63) are themselves, anything else a space.
+Procedure MessageToScreenCodes()
+  Protected i.w, n.w, ch.w
+  n = Len(@msg)
+  For i = 0 To n - 1
+    Mid(@one, @msg, i + 1, 1)
+    ch = Asc(@one)
+    If ch >= 64 And ch <= 95
+      ch = ch - 64
+    ElseIf ch < 32 Or ch > 95
+      ch = 32
+    EndIf
+    msgScr[i] = ch
+  Next
+  msgScr[n] = 255
+EndProcedure
+
 Procedure Main()
   Protected i.w, x.w, y.w, vy.w, dx.w, seen.a, cia.a, c.a, col.a
   PokeA($D020, 0) : PokeA($D021, 0)
@@ -108,6 +129,8 @@ Procedure Main()
   PokeA($D011, PeekA($D011) & $7F)
   st = 0 : PokeA($D012, #BAR_TOP)
   PokeA($D01A, $01)
+  msg = "HELLO FROM PUREMETAL!  THREE SID VOICES, RASTER BARS, A BOUNCING SPRITE AND THIS SMOOTH SCROLLER - ALL WRITTEN IN PUREMETAL AND COMPILED FOR THE C64 ...     "
+  MessageToScreenCodes()
   scroll = 7 : msgPos = 0
   EnableInterrupts
   Repeat
@@ -119,8 +142,8 @@ Procedure Main()
       For i = 0 To 38
         PokeA($0400 + #SCROLL_ROW * 40 + i, PeekA($0400 + #SCROLL_ROW * 40 + 1 + i))
       Next
-      c = PeekA(?msg + msgPos)
-      If c = 255 : msgPos = 0 : c = PeekA(?msg) : EndIf
+      c = PeekA(@msgScr + msgPos)
+      If c = 255 : msgPos = 0 : c = PeekA(@msgScr) : EndIf
       PokeA($0400 + #SCROLL_ROW * 40 + 39, c)
       msgPos = msgPos + 1
     Else
@@ -190,13 +213,4 @@ DataSection
   Data.a 32, 32, 23, 18, 9, 20, 20, 5, 14, 32, 9, 14, 32, 16, 21, 18, 5, 13, 5, 20
   Data.a 1, 12, 44, 32, 2, 21, 9, 12, 20, 32, 2, 25, 32, 16, 13, 6, 15, 18, 7, 5
   Data.a 32
-  msg:
-  Data.a 8, 5, 12, 12, 15, 32, 6, 18, 15, 13, 32, 16, 21, 18, 5, 13, 5, 20, 1, 12
-  Data.a 33, 32, 32, 20, 8, 18, 5, 5, 32, 19, 9, 4, 32, 22, 15, 9, 3, 5, 19, 44
-  Data.a 32, 18, 1, 19, 20, 5, 18, 32, 2, 1, 18, 19, 44, 32, 1, 32, 2, 15, 21, 14
-  Data.a 3, 9, 14, 7, 32, 19, 16, 18, 9, 20, 5, 32, 1, 14, 4, 32, 20, 8, 9, 19
-  Data.a 32, 19, 13, 15, 15, 20, 8, 32, 19, 3, 18, 15, 12, 12, 5, 18, 32, 45, 32, 1
-  Data.a 12, 12, 32, 23, 18, 9, 20, 20, 5, 14, 32, 9, 14, 32, 16, 21, 18, 5, 13, 5
-  Data.a 20, 1, 12, 32, 1, 14, 4, 32, 3, 15, 13, 16, 9, 12, 5, 4, 32, 6, 15, 18
-  Data.a 32, 20, 8, 5, 32, 3, 54, 52, 32, 46, 46, 46, 32, 32, 32, 32, 32, 255
 EndDataSection
