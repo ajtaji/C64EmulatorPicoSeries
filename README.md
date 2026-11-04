@@ -6,6 +6,8 @@ panel, the SID to a Bluetooth speaker (optional), and the kit's stick and button
 The same machine source also builds a desktop program for Windows and Linux, drawn with the Neon Arcade Display Engine, with
 the PC keyboard as the C64's, sound through the PC and debug panes for the CPU, VIC-II, SID and CIAs.
 
+**Note (2026-11-04):** the demo in `demo/` uses PureMetal Forge's classic string library, so it needs a PureMetal Forge newer than the 2026-10-25 release (compiler b9594c9e3 or later; a3098475d recommended). It can't be built with the current public release. The next release, which is being prepared, will build it.
+
 It starts as the **NTSC C64** (the US machine: 60 frames a second); PAL is one command away.
 
 **No ROMs or games are included.** The C64's BASIC, KERNAL and character ROMs are copyrighted: bring

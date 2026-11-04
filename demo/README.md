@@ -5,6 +5,8 @@
 scroller on the bottom row, a bouncing ball sprite, and three SID voices (pulse bass, triangle lead,
 a sawtooth arpeggio) playing Am F C G.
 
+**Note (2026-11-04):** this demo uses PureMetal Forge's classic string library, so it needs a PureMetal Forge newer than the 2026-10-25 release (compiler b9594c9e3 or later; a3098475d recommended). It can't be built with the current public release. The next release, which is being prepared, will build it.
+
 The scroller's message is a string in the program, turned into screen codes once at the start with
 `Len`, `Mid` and `Asc` from the classic-CPU string library. The other tables (the title's screen codes, SID
 frequencies, the song, the sprite) are written by
