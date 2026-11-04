@@ -21,4 +21,4 @@ The compiler writes `c64demo.prg` beside the `.hex` (`10 SYS2072`, code at $0818
 or this emulator: `LOAD"C64DEMO",8,1` and `RUN`, or `desktop\c64_check.exe --boot <roms> --prg demo\c64demo.prg`.
 The demo starts about 4.8 s later than it did with the message as a table, while the message is converted
 (before the interrupts start, so the screen is still and silent until then).
-Built with the compiler at main b9594c9e3 (6,153 bytes).
+Built with the compiler at main 57bcbb605, which contains a3098475d (6,007 bytes).
